@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "term": {
+    "name": "2026秋",
+    "start_date": "2026-08-31"
+  },
+  "courses": [
+    {
+      "id": 1,
+      "name": "C语言程序设计",
+      "location": "啬园校区 JX01-402",
+      "weekday": 2,
+      "start_min": 470,
+      "end_min": 560,
+      "period_label": "第1-2节",
+      "weeks_start": 1,
+      "weeks_end": 17
+    },
+    {
+      "id": 2,
+      "name": "C语言程序设计实验",
+      "location": "啬园校区 JX01-402",
+      "weekday": 2,
+      "start_min": 575,
+      "end_min": 670,
+      "period_label": "第3-4节",
+      "weeks_start": 1,
+      "weeks_end": 17
+    },
+    {
+      "id": 3,
+      "name": "大学生职业发展与创新创业教育（一）",
+      "location": "啬园校区 23-A201（智慧阶梯）",
+      "weekday": 3,
+      "start_min": 470,
+      "end_min": 560,
+      "period_label": "第1-2节",
+      "weeks_start": 3,
+      "weeks_end": 11
+    },
+    {
+      "id": 4,
+      "name": "毛泽东思想和中国特色社会主义理论体系概论",
+      "location": "啬园校区 JX02-506",
+      "weekday": 3,
+      "start_min": 630,
+      "end_min": 720,
+      "period_label": "第4-5节",
+      "weeks_start": 1,
+      "weeks_end": 19
+    },
+    {
+      "id": 5,
+      "name": "线性代数A",
+      "location": "啬园校区 JX03-206",
+      "weekday": 4,
+      "start_min": 470,
+      "end_min": 615,
+      "period_label": "第1-3节",
+      "weeks_start": 1,
+      "weeks_end": 17
+    },
+    {
+      "id": 6,
+      "name": "大学英语-跨文化交际",
+      "location": "啬园校区 23-A106",
+      "weekday": 4,
+      "start_min": 840,
+      "end_min": 930,
+      "period_label": "第6-7节",
+      "weeks_start": 1,
+      "weeks_end": 17
+    },
+    {
+      "id": 7,
+      "name": "形势与政策",
+      "location": "啬园校区 39-A105",
+      "weekday": 4,
+      "start_min": 950,
+      "end_min": 1040,
+      "period_label": "第8-9节",
+      "weeks_start": 7,
+      "weeks_end": 8
+    },
+    {
+      "id": 8,
+      "name": "形势与政策",
+      "location": "啬园校区 39-A105",
+      "weekday": 4,
+      "start_min": 950,
+      "end_min": 1040,
+      "period_label": "第8-9节",
+      "weeks_start": 15,
+      "weeks_end": 16
+    },
+    {
+      "id": 9,
+      "name": "中华民族共同体概论",
+      "location": "啬园校区 JX03-504",
+      "weekday": 5,
+      "start_min": 470,
+      "end_min": 615,
+      "period_label": "第1-3节",
+      "weeks_start": 11,
+      "weeks_end": 15
+    },
+    {
+      "id": 10,
+      "name": "现代测量学实验",
+      "location": "啬园校区 38-301",
+      "weekday": 5,
+      "start_min": 840,
+      "end_min": 930,
+      "period_label": "第6-7节",
+      "weeks_start": 2,
+      "weeks_end": 18
+    },
+    {
+      "id": 11,
+      "name": "现代测量学",
+      "location": "啬园校区 JX04-207",
+      "weekday": 1,
+      "start_min": 575,
+      "end_min": 670,
+      "period_label": "第3-4节",
+      "weeks_start": 11,
+      "weeks_end": 11
+    },
+    {
+      "id": 12,
+      "name": "现代测量学",
+      "location": "啬园校区 JX04-207",
+      "weekday": 1,
+      "start_min": 575,
+      "end_min": 720,
+      "period_label": "第3-5节",
+      "weeks_start": 1,
+      "weeks_end": 10
+    },
+    {
+      "id": 13,
+      "name": "马克思主义基本原理",
+      "location": "啬园校区 JX02-506",
+      "weekday": 1,
+      "start_min": 840,
+      "end_min": 990,
+      "period_label": "第6-8节",
+      "weeks_start": 1,
+      "weeks_end": 14
+    }
+  ]
+}

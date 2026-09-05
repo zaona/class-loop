@@ -1,0 +1,33 @@
+# Loop 模块清单：身份、能力与原生应用声明。
+# 与固件产物一一对应；改 module.id / native_app.app_id 时必须同步 module.rs 与收据签名。
+schema = 1
+
+[module]
+id = "org.canopus.loop"
+version = "0.1.0"
+language = "rust"
+# 激活后驻留：注销应用需要重启（与 Lyra 相同策略）。
+lifecycle = "resident-after-activation"
+canopus_abi = "1"
+
+[targets]
+include = [
+  "xiaomi-band-10-pro-3.101.036",
+  "xiaomi-band-10-pro-3.101.043",
+]
+
+[capabilities]
+required = [
+  "identity-guard",
+  "native-app.register",
+  "launcher.entry",
+  "ui.dispatch",
+  "nuttx.fs",
+]
+
+[native_app]
+enabled = true
+app_id = "org.canopus.loop"
+name = "Loop"
+entry = "canopus_module_descriptor"
+role = "standalone"

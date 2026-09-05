@@ -1,0 +1,13 @@
+/target/
+/build/
+__pycache__/
+.DS_Store
+/watchfaces/loop/module.bin
+/watchfaces/loop/receipt.bin
+/watchfaces/loop-prod/*.bin
+/watchfaces/loop-prod/*.cmi.bin
+*.elf
+*.o
+opaque-*.c
+opaque-*.json
+opaque-*.txt
