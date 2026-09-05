@@ -2,7 +2,7 @@
 
 use alloc::format;
 use canopus_ui_core::{
-    ActionRow, NavigationPage, Snapshot, StatusRow, Text, TextStyle, Tree, UiError, View, view,
+    NavigationPage, Snapshot, StatusRow, Text, TextStyle, Tree, UiError, View, view,
 };
 
 use crate::{
@@ -42,28 +42,44 @@ fn commit(mut tree: Tree, generation: u32) -> Result<Snapshot, UiError> {
 
 fn home(app: &LoopApp) -> Result<Snapshot, UiError> {
     let nn = app.now_next();
-    let now_name = nn
-        .now
-        .map(|c| truncate_label(&c.name, 12))
-        .unwrap_or_else(|| alloc::string::String::from("暂无课程"));
-    let now_detail = nn
-        .now
-        .map(|c| format!("{} · {}", c.period_label, truncate_label(&c.location, 10)))
-        .unwrap_or_else(|| alloc::string::String::from("—"));
-    let next_name = nn
-        .next
-        .map(|c| truncate_label(&c.name, 12))
-        .unwrap_or_else(|| alloc::string::String::from("没有下一节"));
-    let next_detail = nn
-        .next
-        .map(|c| {
-            format!(
-                "{} {}",
-                format_hm(c.start_min),
-                truncate_label(&c.location, 10)
-            )
-        })
-        .unwrap_or_else(|| alloc::string::String::from("—"));
+    // StatusRow：左侧「现在/下一节」，右侧「课名 · 节次 · 地点」整段。
+    let now_value = match nn.now {
+        Some(c) => {
+            let name = truncate_label(&c.name, 10);
+            if c.period_label.is_empty() {
+                format!("{} · {}", name, truncate_label(&c.location, 12))
+            } else {
+                format!(
+                    "{} · {} · {}",
+                    name,
+                    c.period_label,
+                    truncate_label(&c.location, 10)
+                )
+            }
+        }
+        None => alloc::string::String::from("暂无课程"),
+    };
+    let next_value = match nn.next {
+        Some(c) => {
+            let name = truncate_label(&c.name, 10);
+            if c.period_label.is_empty() {
+                format!(
+                    "{} · {} {}",
+                    name,
+                    format_hm(c.start_min),
+                    truncate_label(&c.location, 10)
+                )
+            } else {
+                format!(
+                    "{} · {} · {}",
+                    name,
+                    c.period_label,
+                    truncate_label(&c.location, 10)
+                )
+            }
+        }
+        None => alloc::string::String::from("没有下一节"),
+    };
     let remaining = format!("今日剩余 {} 节", nn.remaining_today);
     let week_label = if app.week() == 0 {
         alloc::string::String::from("学期未开始")
@@ -71,58 +87,15 @@ fn home(app: &LoopApp) -> Result<Snapshot, UiError> {
         format!("{} · 第{}周", app.schedule.term.name, app.week())
     };
 
-    let view = view!(NavigationPage {
-        key: 1,
-        title: "Loop",
-        children: (
-            Text {
-                key: 2,
-                text: week_label.as_str(),
-                style: TextStyle::Description
-            },
-            StatusRow {
-                key: 3,
-                label: "现在",
-                value: now_name.as_str()
-            },
-            Text {
-                key: 4,
-                text: now_detail.as_str(),
-                style: TextStyle::Description
-            },
-            StatusRow {
-                key: 5,
-                label: "下一节",
-                value: next_name.as_str()
-            },
-            Text {
-                key: 6,
-                text: next_detail.as_str(),
-                style: TextStyle::Description
-            },
-            StatusRow {
-                key: 7,
-                label: "进度",
-                value: remaining.as_str()
-            },
-            ActionRow {
-                key: 8,
-                label: "今日课表",
-                detail: "",
-                event: UiEvent(EVENT_TODAY),
-                enabled: true
-            },
-            ActionRow {
-                key: 9,
-                label: "本周",
-                detail: "",
-                event: UiEvent(EVENT_WEEK),
-                enabled: true
-            },
-        ),
-    });
     let mut tree = Tree::begin();
-    <_ as View<UiEvent>>::render(&view, &mut tree)?;
+    tree.navigation_page(1, "Loop")?;
+    tree.text(2, week_label.as_str(), TextStyle::Description)?;
+    tree.status_row(3, "现在", now_value.as_str())?;
+    tree.status_row(4, "下一节", next_value.as_str())?;
+    tree.status_row(5, "进度", remaining.as_str())?;
+    tree.action_row(6, "今日课表", "", EVENT_TODAY, true)?;
+    tree.action_row(7, "本周", "", EVENT_WEEK, true)?;
+    tree.end()?;
     commit(tree, app.generation)
 }
 
