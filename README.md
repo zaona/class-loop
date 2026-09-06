@@ -45,7 +45,6 @@ crates/loop-device/               设备 staticlib（模块描述符 / launcher 
 quickapps/loop-import/            手表快应用（落盘 schedule.json）
 plugins/astrobox-loop-import/     AstroBox 课表导入插件
 scripts/                          ICS 转换与交叉编译
-fixtures/                         主机侧转换示例（不进固件）
 watchfaces/loop/                  单 target 安装表盘
 watchfaces/loop-prod/             036+043 生产安装表盘
 docs/BUILD.md                     Windows 构建说明

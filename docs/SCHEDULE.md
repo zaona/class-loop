@@ -24,7 +24,7 @@ loop-device / loop-core
 
 - 快应用工程：`quickapps/loop-import`
 - 手机插件：`plugins/astrobox-loop-import`（协议见 [SCHEDULE_IMPORT_PROTOCOL.md](SCHEDULE_IMPORT_PROTOCOL.md)）
-- 主机脚本：`scripts/ics-to-schedule.py`（离线转换；`fixtures/` 仅为示例，不进固件）
+- 主机脚本：`scripts/ics-to-schedule.py`（离线转换；输出本地 JSON，不进固件）
 - 文件缺失或非法：Loop 显示空课表（「尚未导入课表」），不回退样例
 
 ## Schema（version = 1）
