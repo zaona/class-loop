@@ -1,0 +1,247 @@
+<template>
+  <div class="page">
+    <text class="title">Loop Import</text>
+    <text class="body">{{ status }}</text>
+    <text class="hint">保持本页打开以接收 AstroBox 推送。路径 internal://files/loop/schedule.json</text>
+  </div>
+</template>
+
+<script>
+import file from '@system.file'
+import interconnect from '@system.interconnect'
+
+const ROOT = 'internal://files/loop'
+const SCHEDULE_URI = ROOT + '/schedule.json'
+const SCHEDULE_TMP = ROOT + '/schedule.json.tmp'
+const PROTOCOL_VERSION = 1
+const MAX_SCHEDULE_BYTES = 40960
+
+export default {
+  private: {
+    connect: null,
+    operation: null,
+    status: '等待 AstroBox 连接'
+  },
+  onInit() {
+    this.operation = Promise.resolve()
+    this.connect = interconnect.instance()
+    this.connect.onopen = (data) => {
+      this.status =
+        data && data.isReconnected ? '已重新连接，等待推送' : '已连接，等待 AstroBox 推送'
+    }
+    this.connect.onclose = () => {
+      this.status = '连接已断开；请保持本页打开'
+    }
+    this.connect.onerror = (data) => {
+      this.status = '连接错误: ' + (data && data.data ? String(data.data) : '未知')
+    }
+    this.connect.onmessage = (event) => {
+      const payload = event && event.data !== undefined ? event.data : event
+      this.operation = this.operation
+        .then(() => this.handleMessage(payload))
+        .catch((error) => {
+          const reason = error && error.message ? error.message : String(error)
+          this.status = '处理失败: ' + reason
+          this.sendError('', 'io-error', reason)
+        })
+    }
+  },
+  onReady() {
+    interconnect.getReadyState({
+      success: (data) => {
+        this.status = data.status === 1 ? '已连接，等待 AstroBox 推送' : '等待 AstroBox 连接'
+      },
+      fail: () => {
+        this.status = '等待 AstroBox 连接'
+      }
+    })
+    this.refreshStatus()
+  },
+  send(message) {
+    // 与 Lyra Import 一致：传对象，由系统序列化；勿预先 JSON.stringify，否则插件端会双重解码失败。
+    if (!this.connect) return
+    this.connect.send({
+      data: message,
+      fail: (data, code) => {
+        this.status = '回复 AstroBox 失败: ' + String(data || code)
+      }
+    })
+  },
+  sendError(id, code, message) {
+    this.send({
+      tag: 'loop-import-error',
+      version: PROTOCOL_VERSION,
+      id: id || '',
+      code,
+      message: String(message || 'error')
+    })
+  },
+  async handleMessage(payload) {
+    let message = payload
+    if (typeof message === 'string') {
+      message = JSON.parse(message)
+    }
+    if (!message || typeof message !== 'object') {
+      throw new Error('invalid message')
+    }
+    switch (message.tag) {
+      case 'loop-import-hello':
+        this.send({
+          tag: 'loop-import-hello',
+          version: PROTOCOL_VERSION,
+          ok: true,
+          maxScheduleBytes: MAX_SCHEDULE_BYTES
+        })
+        this.status = '已握手，等待课表'
+        return
+      case 'loop-import-publish':
+        await this.handlePublish(message)
+        return
+      default:
+        return
+    }
+  },
+  validateSchedule(schedule) {
+    if (!schedule || typeof schedule !== 'object') {
+      throw new Error('schedule missing')
+    }
+    if (schedule.version !== 1) {
+      throw new Error('schedule.version must be 1')
+    }
+    if (!schedule.term || typeof schedule.term !== 'object') {
+      throw new Error('schedule.term missing')
+    }
+    if (!schedule.term.name) {
+      throw new Error('schedule.term.name missing')
+    }
+    if (!schedule.term.start_date) {
+      throw new Error('schedule.term.start_date missing')
+    }
+    if (!Array.isArray(schedule.courses)) {
+      throw new Error('schedule.courses must be an array')
+    }
+  },
+  async handlePublish(message) {
+    const id = message && message.id ? String(message.id) : ''
+    try {
+      if (message.version !== PROTOCOL_VERSION) {
+        throw new Error('unsupported protocol version')
+      }
+      const schedule = message.schedule
+      this.validateSchedule(schedule)
+      const text = JSON.stringify(schedule)
+      if (text.length > MAX_SCHEDULE_BYTES) {
+        throw new Error('schedule exceeds maxScheduleBytes')
+      }
+      this.status = '正在写入课表…'
+      await this.publishText(text)
+      const courses = Array.isArray(schedule.courses) ? schedule.courses.length : 0
+      this.send({
+        tag: 'loop-import-ack',
+        version: PROTOCOL_VERSION,
+        id,
+        courses
+      })
+      this.status = '已写入 ' + courses + ' 门课，打开 Loop 即可使用'
+    } catch (error) {
+      const reason = error && error.message ? error.message : String(error)
+      this.sendError(id, 'publish-failed', reason)
+      this.status = '写入失败: ' + reason
+    }
+  },
+  ensureDir() {
+    return new Promise((resolve, reject) => {
+      file.access({
+        uri: ROOT,
+        success: () => resolve(),
+        fail: () => {
+          file.mkdir({
+            uri: ROOT,
+            success: () => resolve(),
+            fail: (err) => reject(err)
+          })
+        }
+      })
+    })
+  },
+  writeText(uri, text) {
+    return new Promise((resolve, reject) => {
+      file.writeText({
+        uri,
+        text,
+        success: () => resolve(),
+        fail: (err) => reject(err)
+      })
+    })
+  },
+  move(src, dst) {
+    return new Promise((resolve, reject) => {
+      file.move({
+        srcUri: src,
+        dstUri: dst,
+        success: () => resolve(),
+        fail: (err) => reject(err)
+      })
+    })
+  },
+  access(uri) {
+    return new Promise((resolve) => {
+      file.access({
+        uri,
+        success: () => resolve(true),
+        fail: () => resolve(false)
+      })
+    })
+  },
+  async refreshStatus() {
+    const ok = await this.access(SCHEDULE_URI)
+    if (ok && this.status.indexOf('等待') === 0) {
+      this.status = '已发现 schedule.json；也可继续接收 AstroBox 覆盖推送'
+    }
+  },
+  async publishText(jsonText) {
+    await this.ensureDir()
+    await this.writeText(SCHEDULE_TMP, jsonText)
+    const exists = await this.access(SCHEDULE_URI)
+    if (exists) {
+      try {
+        await this.move(SCHEDULE_TMP, SCHEDULE_URI)
+      } catch (e) {
+        await this.writeText(SCHEDULE_URI, jsonText)
+      }
+    } else {
+      await this.move(SCHEDULE_TMP, SCHEDULE_URI)
+    }
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  background-color: #0B1A17;
+}
+.title {
+  font-size: 36px;
+  color: #FFFFFF;
+  margin-top: 40px;
+  margin-bottom: 16px;
+}
+.body {
+  width: 280px;
+  font-size: 24px;
+  color: #B8E0D2;
+  text-align: center;
+  margin-bottom: 24px;
+}
+.hint {
+  width: 280px;
+  font-size: 20px;
+  color: #7A9E92;
+  text-align: center;
+}
+</style>

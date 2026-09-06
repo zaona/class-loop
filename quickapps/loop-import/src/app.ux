@@ -1,0 +1,10 @@
+<script>
+export default {
+  onCreate() {
+    console.log('Loop Import created')
+  },
+  onDestroy() {
+    console.log('Loop Import destroyed')
+  }
+}
+</script>
