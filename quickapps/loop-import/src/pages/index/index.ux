@@ -1,12 +1,16 @@
 <template>
-  <div class="page">
-    <text class="title">Loop Import</text>
-    <text class="body">{{ status }}</text>
-    <text class="hint">保持本页打开以接收 AstroBox 推送。路径 internal://files/loop/schedule.json</text>
+  <div class="page" onswipe="onSwipe">
+    <image class="back" src="/common/back.png" onclick="onBack"></image>
+    <text class="time">{{ time }}</text>
+    <text class="nav-title">同步内容</text>
+    <image class="hero" src="{{ heroSrc }}"></image>
+    <text class="headline">{{ headline }}</text>
+    <text class="hint">{{ hint }}</text>
   </div>
 </template>
 
 <script>
+import app from '@system.app'
 import file from '@system.file'
 import interconnect from '@system.interconnect'
 
@@ -15,25 +19,42 @@ const SCHEDULE_URI = ROOT + '/schedule.json'
 const SCHEDULE_TMP = ROOT + '/schedule.json.tmp'
 const PROTOCOL_VERSION = 1
 const MAX_SCHEDULE_BYTES = 40960
+const HINT_WAIT = '请打开课表导入插件\n准备上传内容'
+const HINT_HAS_SCHEDULE = '本地已存在课表\n也可继续接收覆盖推送'
+const HERO_CONNECT = '/common/hero-connect.png'
+const HERO_SELECT = '/common/hero-select.png'
+const HERO_DOWNLOAD = '/common/hero-download.png'
+const HERO_SUCCESS = '/common/hero-success.png'
+const HERO_FAIL = '/common/hero-fail.png'
 
 export default {
   private: {
     connect: null,
     operation: null,
+    clockTimer: null,
+    time: '00:00',
+    headline: '等待 AstroBox 连接',
+    hint: HINT_WAIT,
+    heroSrc: HERO_CONNECT,
     status: '等待 AstroBox 连接'
   },
   onInit() {
+    this.tickClock()
     this.operation = Promise.resolve()
     this.connect = interconnect.instance()
     this.connect.onopen = (data) => {
-      this.status =
-        data && data.isReconnected ? '已重新连接，等待推送' : '已连接，等待 AstroBox 推送'
+      if (data && data.isReconnected) {
+        this.setIdleView('已重新连接', HERO_SELECT)
+      } else {
+        this.setIdleView('已连接，等待推送', HERO_SELECT)
+      }
     }
     this.connect.onclose = () => {
-      this.status = '连接已断开；请保持本页打开'
+      this.setView('连接已断开', '请保持本页打开\n等待重新连接', HERO_CONNECT)
     }
     this.connect.onerror = (data) => {
-      this.status = '连接错误: ' + (data && data.data ? String(data.data) : '未知')
+      const reason = data && data.data ? String(data.data) : '未知'
+      this.setView('连接错误', reason, HERO_FAIL)
     }
     this.connect.onmessage = (event) => {
       const payload = event && event.data !== undefined ? event.data : event
@@ -41,21 +62,80 @@ export default {
         .then(() => this.handleMessage(payload))
         .catch((error) => {
           const reason = error && error.message ? error.message : String(error)
-          this.status = '处理失败: ' + reason
+          this.setView('处理失败', reason, HERO_FAIL)
           this.sendError('', 'io-error', reason)
         })
     }
   },
   onReady() {
+    this.startClock()
     interconnect.getReadyState({
       success: (data) => {
-        this.status = data.status === 1 ? '已连接，等待 AstroBox 推送' : '等待 AstroBox 连接'
+        if (data.status === 1) {
+          this.setIdleView('已连接，等待推送', HERO_SELECT)
+        } else {
+          this.setIdleView('等待 AstroBox 连接', HERO_CONNECT)
+        }
       },
       fail: () => {
-        this.status = '等待 AstroBox 连接'
+        this.setIdleView('等待 AstroBox 连接', HERO_CONNECT)
       }
     })
-    this.refreshStatus()
+  },
+  onShow() {
+    this.startClock()
+    if (this.heroSrc === HERO_CONNECT || this.heroSrc === HERO_SELECT) {
+      this.setIdleView(this.headline, this.heroSrc)
+    }
+  },
+  onHide() {
+    this.stopClock()
+  },
+  onDestroy() {
+    this.stopClock()
+  },
+  onBackPress() {
+    app.terminate()
+    return true
+  },
+  pad2(value) {
+    return value < 10 ? '0' + value : '' + value
+  },
+  tickClock() {
+    const now = new Date()
+    this.time = this.pad2(now.getHours()) + ':' + this.pad2(now.getMinutes())
+  },
+  startClock() {
+    this.tickClock()
+    if (this.clockTimer) return
+    this.clockTimer = setInterval(() => {
+      this.tickClock()
+    }, 10000)
+  },
+  stopClock() {
+    if (!this.clockTimer) return
+    clearInterval(this.clockTimer)
+    this.clockTimer = null
+  },
+  setView(headline, hint, heroSrc) {
+    this.headline = headline
+    this.hint = hint
+    this.status = headline
+    if (heroSrc) {
+      this.heroSrc = heroSrc
+    }
+  },
+  async setIdleView(headline, heroSrc) {
+    const hasSchedule = await this.access(SCHEDULE_URI)
+    this.setView(headline, hasSchedule ? HINT_HAS_SCHEDULE : HINT_WAIT, heroSrc)
+  },
+  onBack() {
+    app.terminate()
+  },
+  onSwipe(evt) {
+    if (evt && evt.direction === 'right') {
+      this.onBack()
+    }
   },
   send(message) {
     // 与 Lyra Import 一致：传对象，由系统序列化；勿预先 JSON.stringify，否则插件端会双重解码失败。
@@ -63,7 +143,7 @@ export default {
     this.connect.send({
       data: message,
       fail: (data, code) => {
-        this.status = '回复 AstroBox 失败: ' + String(data || code)
+        this.setView('回复失败', String(data || code), HERO_FAIL)
       }
     })
   },
@@ -92,7 +172,7 @@ export default {
           ok: true,
           maxScheduleBytes: MAX_SCHEDULE_BYTES
         })
-        this.status = '已握手，等待课表'
+        this.setIdleView('已握手，等待课表', HERO_SELECT)
         return
       case 'loop-import-publish':
         await this.handlePublish(message)
@@ -133,7 +213,7 @@ export default {
       if (text.length > MAX_SCHEDULE_BYTES) {
         throw new Error('schedule exceeds maxScheduleBytes')
       }
-      this.status = '正在写入课表…'
+      this.setView('正在写入课表', '请保持本页打开', HERO_DOWNLOAD)
       await this.publishText(text)
       const courses = Array.isArray(schedule.courses) ? schedule.courses.length : 0
       this.send({
@@ -142,11 +222,15 @@ export default {
         id,
         courses
       })
-      this.status = '已写入 ' + courses + ' 门课，打开 Loop 即可使用'
+      this.setView(
+        '写入完成',
+        '已写入 ' + courses + ' 门课\n打开 Loop 即可使用',
+        HERO_SUCCESS
+      )
     } catch (error) {
       const reason = error && error.message ? error.message : String(error)
       this.sendError(id, 'publish-failed', reason)
-      this.status = '写入失败: ' + reason
+      this.setView('写入失败', reason, HERO_FAIL)
     }
   },
   ensureDir() {
@@ -193,12 +277,6 @@ export default {
       })
     })
   },
-  async refreshStatus() {
-    const ok = await this.access(SCHEDULE_URI)
-    if (ok && this.status.indexOf('等待') === 0) {
-      this.status = '已发现 schedule.json；也可继续接收 AstroBox 覆盖推送'
-    }
-  },
   async publishText(jsonText) {
     await this.ensureDir()
     await this.writeText(SCHEDULE_TMP, jsonText)
@@ -220,28 +298,74 @@ export default {
 .page {
   width: 100%;
   height: 100%;
-  flex-direction: column;
-  align-items: center;
-  padding: 24px;
-  background-color: #0B1A17;
+  background-color: #000000;
 }
-.title {
-  font-size: 36px;
-  color: #FFFFFF;
-  margin-top: 40px;
-  margin-bottom: 16px;
+.back {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
 }
-.body {
-  width: 280px;
+.time {
+  position: absolute;
+  left: 0px;
+  top: 10px;
+  width: 336px;
+  height: 32px;
   font-size: 24px;
-  color: #B8E0D2;
+  line-height: 32px;
+  font-weight: bold;
+  color: #999999;
   text-align: center;
-  margin-bottom: 24px;
+}
+.nav-title {
+  position: absolute;
+  left: 0px;
+  top: 40px;
+  width: 336px;
+  height: 40px;
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: normal;
+  color: #FFFFFF;
+  text-align: center;
+}
+.hero {
+  position: absolute;
+  left: 104px;
+  top: 146px;
+  width: 128px;
+  height: 128px;
+  object-fit: contain;
+}
+.headline {
+  position: absolute;
+  left: 16px;
+  top: 300px;
+  width: 304px;
+  height: 40px;
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: normal;
+  color: #FFFFFF;
+  text-align: center;
+  lines: 1;
+  text-overflow: ellipsis;
 }
 .hint {
-  width: 280px;
-  font-size: 20px;
-  color: #7A9E92;
+  position: absolute;
+  left: 24px;
+  top: 358px;
+  width: 288px;
+  height: 72px;
+  font-size: 26px;
+  line-height: 36px;
+  font-weight: normal;
+  color: #999999;
   text-align: center;
+  lines: 2;
+  text-overflow: ellipsis;
 }
 </style>

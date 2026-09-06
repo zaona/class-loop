@@ -10,6 +10,7 @@ __pycache__/
 /quickapps/*/node_modules/
 /quickapps/*/build/
 /quickapps/*/dist/
+/quickapps/*/sign/
 /plugins/*/target/
 /plugins/*/dist/*.abp
 *.elf

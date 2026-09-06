@@ -8,15 +8,16 @@
   "simulationVersion": "default",
   "deviceTypeList": ["watch"],
   "features": [
+    { "name": "system.app" },
     { "name": "system.file" },
     { "name": "system.interconnect" }
   ],
   "config": {
     "logLevel": "log",
-    "designWidth": "device-width"
+    "designWidth": 336
   },
   "display": {
-    "backgroundColor": "#0B1A17"
+    "backgroundColor": "#000000"
   },
   "router": {
     "entry": "pages/index",
