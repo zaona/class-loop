@@ -29,23 +29,27 @@ D:\Canopus\
 ## 一期范围
 
 - 首页：现在 / 下一节 / 今日剩余
-- 今日、本周、课程详情
-- 内置课表：由 WakeUp ICS 转换的 `fixtures/schedule.json`
-- 可选覆盖：`/data/files/com.canopus.loop/schedule.json`
+- 今日、本周、课程详情、数据管理（手动刷新 / 清空本地课表）
+- 运行时课表：快应用 `top.zaona.loopimport` → `/data/files/top.zaona.loopimport/loop/schedule.json`（无文件则空课表）
+- 快应用工程：`quickapps/loop-import`
+- AstroBox 插件：`plugins/astrobox-loop-import`（推送 `schedule.json`）
 - 目标：Band 10 Pro `3.101.036` + `3.101.043`
 
-不做：腕上编辑、手机导入协议、上课提醒。
+不做：腕上编辑、上课提醒、固件内置课表。
 
 ## 仓库结构
 
 ```
-crates/loop-core/     no_std 课表模型与 UI snapshot
-crates/loop-device/   设备 staticlib（模块描述符 / launcher / LVGL）
-scripts/              ICS 转换与交叉编译
-fixtures/             内置课表 JSON
-watchfaces/loop/      单 target 安装表盘
-watchfaces/loop-prod/ 036+043 生产安装表盘
-docs/BUILD.md         Windows 构建说明
+crates/loop-core/                 no_std 课表模型与 UI snapshot
+crates/loop-device/               设备 staticlib（模块描述符 / launcher / LVGL）
+quickapps/loop-import/            手表快应用（落盘 schedule.json）
+plugins/astrobox-loop-import/     AstroBox 课表导入插件
+scripts/                          ICS 转换与交叉编译
+fixtures/                         主机侧转换示例（不进固件）
+watchfaces/loop/                  单 target 安装表盘
+watchfaces/loop-prod/             036+043 生产安装表盘
+docs/BUILD.md                     Windows 构建说明
+docs/SCHEDULE_IMPORT_PROTOCOL.md  插件↔快应用协议
 ```
 
 ## 快速构建
@@ -60,10 +64,21 @@ docs/BUILD.md         Windows 构建说明
 
 ## 课表数据
 
-主机转换（设备不解析 ICS）：
+见 [docs/SCHEDULE.md](docs/SCHEDULE.md)。主机转换（设备不解析 ICS）：
 
 ```sh
-python scripts/ics-to-schedule.py path/to/课表.ics -o fixtures/schedule.json
+python scripts/ics-to-schedule.py path/to/课表.ics
+python scripts/ics-to-schedule.py path/to/课表.ics --check
+python scripts/ics-to-schedule.py path/to/课表.ics \
+  --term-name 2026秋 --term-start 2026-08-31 \
+  -o schedule.json
+```
+
+手机推送：打开手表 **Loop Import** 前台，在 AstroBox 安装 `plugins/astrobox-loop-import` 构建出的 `.abp`，直接选择课表 `.ics`（插件内转换）或 `schedule.json` 推送。协议见 [docs/SCHEDULE_IMPORT_PROTOCOL.md](docs/SCHEDULE_IMPORT_PROTOCOL.md)。
+
+```sh
+cd plugins/astrobox-loop-import
+python scripts/build_dist.py --release --package
 ```
 
 ## License

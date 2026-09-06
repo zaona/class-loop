@@ -2,9 +2,10 @@
 //!
 //! LVGL 只在 page owner 线程触碰；刷新定时器亦由该页自己创建。
 
+use alloc::{format, string::String};
 use core::sync::atomic::Ordering;
 
-use loop_core::{Action, Effect, Route, ui};
+use loop_core::{Action, Effect, Route, ScheduleFile, ui};
 
 use runtime::{initialized, runtime, try_with_core, with_core};
 
@@ -56,17 +57,30 @@ pub fn query_status() -> [u32; 6] {
     ]
 }
 
+fn apply_disk_schedule(core: &mut runtime::Core) {
+    match storage::load_schedule() {
+        Ok(Some(file)) => {
+            let _ = core.app.update(Action::Reload(file));
+        }
+        Ok(None) => {
+            let empty =
+                core.app.schedule.courses.is_empty() && core.app.schedule.term.name.is_empty();
+            if !empty {
+                let _ = core.app.update(Action::Reload(ScheduleFile::default()));
+            }
+        }
+        Err(_) => {}
+    }
+}
+
 fn refresh_clock_and_schedule(core: &mut runtime::Core) {
     if let Some(hint) = clock::read_clock() {
         let _ = core.app.update(Action::Tick(hint));
     }
-    // 低频：每 50 次刷新（约 5s）尝试重读覆盖文件。
+    // 低频：每 50 次刷新（约 5s）尝试重读快应用 schedule.json。
     let tick = runtime().timer_ticks.fetch_add(1, Ordering::AcqRel) + 1;
     if tick == 1 || tick % 50 == 0 {
-        if let Ok((file, from_override)) = storage::load_schedule() {
-            core.app.from_override = from_override;
-            let _ = core.app.update(Action::Reload(file));
-        }
+        apply_disk_schedule(core);
     }
 }
 
@@ -170,6 +184,9 @@ fn action_for_event(event_id: u32) -> Option<Action> {
     match event_id {
         ui::EVENT_TODAY => Some(Action::Open(Route::Today)),
         ui::EVENT_WEEK => Some(Action::Open(Route::Week)),
+        ui::EVENT_DATA => Some(Action::Open(Route::Data)),
+        ui::EVENT_REFRESH => Some(Action::RefreshSchedule),
+        ui::EVENT_CLEAR => Some(Action::ClearSchedule),
         event if (ui::EVENT_DAY_BASE + 1..=ui::EVENT_DAY_BASE + 7).contains(&event) => {
             Some(Action::SelectDay((event - ui::EVENT_DAY_BASE) as u8))
         }
@@ -186,6 +203,45 @@ fn execute_effects(effects: alloc::vec::Vec<Effect>) {
             Effect::Navigate(route) => {
                 ui_backend::navigate(route.page_index());
             }
+            Effect::ReloadFromDisk => {
+                with_core(|core| match storage::load_schedule() {
+                    Ok(Some(file)) => {
+                        let count = file.courses.len();
+                        let _ = core.app.update(Action::Reload(file));
+                        let _ = core
+                            .app
+                            .update(Action::SetDataStatus(format!("已刷新，共 {count} 门课")));
+                    }
+                    Ok(None) => {
+                        let _ = core.app.update(Action::Reload(ScheduleFile::default()));
+                        let _ = core
+                            .app
+                            .update(Action::SetDataStatus(String::from("无本地课表文件")));
+                    }
+                    Err(_) => {
+                        let _ = core
+                            .app
+                            .update(Action::SetDataStatus(String::from("刷新失败")));
+                    }
+                });
+            }
+            Effect::ClearStoredSchedule => match storage::clear_schedule() {
+                Ok(()) => {
+                    with_core(|core| {
+                        let _ = core.app.update(Action::Reload(ScheduleFile::default()));
+                        let _ = core
+                            .app
+                            .update(Action::SetDataStatus(String::from("已清空本地课表")));
+                    });
+                }
+                Err(_) => {
+                    with_core(|core| {
+                        let _ = core
+                            .app
+                            .update(Action::SetDataStatus(String::from("清空失败")));
+                    });
+                }
+            },
         }
     }
 }

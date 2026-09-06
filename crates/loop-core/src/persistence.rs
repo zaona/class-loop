@@ -1,16 +1,18 @@
-//! 课表 JSON 加载与路径安全检查。
+//! 课表 JSON 加载。
+//!
+//! 只读快应用 `top.zaona.loopimport` 沙箱中的 schedule.json；
+//! 文件缺失时由调用方保持空课表，不内置样例。
 
 use alloc::{string::String, vec::Vec};
 use serde::{Deserialize, Serialize};
 
 use crate::model::{SCHEDULE_VERSION, ScheduleFile};
 
-/// 设备端覆盖文件约定路径（快应用或调试推送可写入此处）。
-pub const SCHEDULE_OVERRIDE_PATH: &str = "/data/files/com.canopus.loop/schedule.json";
-pub const PACKAGE_FILES_ROOT: &str = "/data/files/com.canopus.loop";
+/// 快应用 `internal://files/loop` 映射到设备上的目录。
+pub const IMPORT_ROOT: &str = "/data/files/top.zaona.loopimport/loop";
 
-/// 编译进固件的样例课表（由 `scripts/ics-to-schedule.py` 生成）。
-pub const BUILTIN_SCHEDULE_JSON: &str = include_str!("../../../fixtures/schedule.json");
+/// 原生模块读取的课表清单路径。
+pub const SCHEDULE_PATH: &str = "/data/files/top.zaona.loopimport/loop/schedule.json";
 
 pub trait Store {
     type Error;
@@ -44,28 +46,25 @@ pub fn parse_schedule_bytes(bytes: &[u8]) -> Result<ScheduleFile, PersistenceErr
     })
 }
 
-pub fn load_builtin() -> Result<ScheduleFile, PersistenceError<()>> {
-    parse_schedule_bytes(BUILTIN_SCHEDULE_JSON.as_bytes())
+fn map_parse_error<E>(error: PersistenceError<()>) -> PersistenceError<E> {
+    match error {
+        PersistenceError::Json => PersistenceError::Json,
+        PersistenceError::Version => PersistenceError::Version,
+        PersistenceError::Storage(()) => PersistenceError::Json,
+    }
 }
 
-/// 优先读覆盖文件；缺失或损坏时回退到内置样例。
+/// 读取快应用发布的 schedule.json。
+///
+/// `Ok(None)` 表示文件不存在；非法内容返回 `Err`。
 pub fn load_schedule<S: Store>(
     store: &mut S,
-) -> Result<(ScheduleFile, bool), PersistenceError<S::Error>> {
-    match store.read(SCHEDULE_OVERRIDE_PATH) {
-        Ok(Some(bytes)) => match parse_schedule_bytes(&bytes) {
-            Ok(file) => Ok((file, true)),
-            Err(PersistenceError::Json) => Err(PersistenceError::Json),
-            Err(PersistenceError::Version) => Err(PersistenceError::Version),
-            Err(PersistenceError::Storage(_)) => unreachable!(),
-        },
-        Ok(None) => load_builtin()
-            .map(|file| (file, false))
-            .map_err(|e| match e {
-                PersistenceError::Json => PersistenceError::Json,
-                PersistenceError::Version => PersistenceError::Version,
-                PersistenceError::Storage(()) => PersistenceError::Json,
-            }),
+) -> Result<Option<ScheduleFile>, PersistenceError<S::Error>> {
+    match store.read(SCHEDULE_PATH) {
+        Ok(None) => Ok(None),
+        Ok(Some(bytes)) => parse_schedule_bytes(&bytes)
+            .map(Some)
+            .map_err(map_parse_error),
         Err(error) => Err(PersistenceError::Storage(error)),
     }
 }

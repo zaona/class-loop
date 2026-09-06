@@ -3,7 +3,7 @@
 use alloc::{string::String, vec::Vec};
 use serde::{Deserialize, Serialize};
 
-/// 内置样例版本；与 `fixtures/schedule.json` / 覆盖文件 schema 一致。
+/// schedule.json schema 版本。
 pub const SCHEDULE_VERSION: u8 = 1;
 
 /// 学期元数据。`start_date` 所在日历周为第 1 教学周。
@@ -14,8 +14,12 @@ pub struct Term {
     pub start_date: String,
 }
 
+fn default_week_interval() -> u8 {
+    1
+}
+
 /// 一条课程出现记录。同名课不同周段会拆成多条，不合并。
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Course {
     pub id: u32,
     pub name: String,
@@ -32,6 +36,26 @@ pub struct Course {
     pub period_label: String,
     pub weeks_start: u8,
     pub weeks_end: u8,
+    /// 周间隔；默认每周。`2` 表示隔周（相对 `weeks_start`）。
+    #[serde(default = "default_week_interval")]
+    pub week_interval: u8,
+}
+
+impl Default for Course {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            name: String::new(),
+            location: String::new(),
+            weekday: 0,
+            start_min: 0,
+            end_min: 0,
+            period_label: String::new(),
+            weeks_start: 0,
+            weeks_end: 0,
+            week_interval: 1,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -49,16 +73,27 @@ impl Course {
     }
 
     pub fn weeks_label(&self) -> alloc::string::String {
+        let interval = self.week_interval.max(1);
         if self.weeks_start == self.weeks_end {
             alloc::format!("第{}周", self.weeks_start)
-        } else {
+        } else if interval == 1 {
             alloc::format!("第{}-{}周", self.weeks_start, self.weeks_end)
+        } else {
+            alloc::format!(
+                "第{}-{}周(隔{})",
+                self.weeks_start,
+                self.weeks_end,
+                interval
+            )
         }
     }
 
     /// 指定教学周是否包含本条。
     pub fn active_in_week(&self, week: u8) -> bool {
-        week >= self.weeks_start && week <= self.weeks_end
+        let interval = self.week_interval.max(1);
+        week >= self.weeks_start
+            && week <= self.weeks_end
+            && (week - self.weeks_start) % interval == 0
     }
 }
 

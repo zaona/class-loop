@@ -6,6 +6,11 @@ __pycache__/
 /watchfaces/loop/receipt.bin
 /watchfaces/loop-prod/*.bin
 /watchfaces/loop-prod/*.cmi.bin
+/quickapps/*/node_modules/
+/quickapps/*/build/
+/quickapps/*/dist/
+/plugins/*/target/
+/plugins/*/dist/*.abp
 *.elf
 *.o
 opaque-*.c

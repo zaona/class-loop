@@ -124,7 +124,7 @@
       "end_min": 670,
       "period_label": "第3-4节",
       "weeks_start": 11,
-      "weeks_end": 11
+      "weeks_end": 12
     },
     {
       "id": 12,
@@ -135,7 +135,7 @@
       "end_min": 720,
       "period_label": "第3-5节",
       "weeks_start": 1,
-      "weeks_end": 10
+      "weeks_end": 11
     },
     {
       "id": 13,
@@ -146,7 +146,7 @@
       "end_min": 990,
       "period_label": "第6-8节",
       "weeks_start": 1,
-      "weeks_end": 14
+      "weeks_end": 15
     }
   ]
 }

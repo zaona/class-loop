@@ -14,6 +14,9 @@ use crate::{
 pub const EVENT_BACK: u32 = 1;
 pub const EVENT_TODAY: u32 = 2;
 pub const EVENT_WEEK: u32 = 3;
+pub const EVENT_DATA: u32 = 4;
+pub const EVENT_REFRESH: u32 = 5;
+pub const EVENT_CLEAR: u32 = 6;
 pub const EVENT_DAY_BASE: u32 = 100;
 pub const EVENT_COURSE_BASE: u32 = 1_000;
 
@@ -31,6 +34,7 @@ pub fn render(app: &LoopApp) -> Result<Snapshot, UiError> {
         Route::Today => today(app),
         Route::Week => week(app),
         Route::Detail => detail(app),
+        Route::Data => data(app),
     }
 }
 
@@ -81,8 +85,14 @@ fn home(app: &LoopApp) -> Result<Snapshot, UiError> {
         None => alloc::string::String::from("没有下一节"),
     };
     let remaining = format!("今日剩余 {} 节", nn.remaining_today);
-    let week_label = if app.week() == 0 {
-        alloc::string::String::from("学期未开始")
+    let week_label = if app.schedule.courses.is_empty() && app.schedule.term.name.is_empty() {
+        alloc::string::String::from("尚未导入课表")
+    } else if app.week() == 0 {
+        if app.schedule.term.name.is_empty() {
+            alloc::string::String::from("学期未开始")
+        } else {
+            format!("{} · 学期未开始", app.schedule.term.name)
+        }
     } else {
         format!("{} · 第{}周", app.schedule.term.name, app.week())
     };
@@ -95,6 +105,7 @@ fn home(app: &LoopApp) -> Result<Snapshot, UiError> {
     tree.status_row(5, "进度", remaining.as_str())?;
     tree.action_row(6, "今日课表", "", EVENT_TODAY, true)?;
     tree.action_row(7, "本周", "", EVENT_WEEK, true)?;
+    tree.action_row(8, "数据管理", "", EVENT_DATA, true)?;
     tree.end()?;
     commit(tree, app.generation)
 }
@@ -220,5 +231,20 @@ fn detail(app: &LoopApp) -> Result<Snapshot, UiError> {
     });
     let mut tree = Tree::begin();
     <_ as View<UiEvent>>::render(&view, &mut tree)?;
+    commit(tree, app.generation)
+}
+
+fn data(app: &LoopApp) -> Result<Snapshot, UiError> {
+    let status = if app.data_status.is_empty() {
+        "管理已导入的课表"
+    } else {
+        app.data_status.as_str()
+    };
+    let mut tree = Tree::begin();
+    tree.navigation_page(1, "数据")?;
+    tree.text(2, status, TextStyle::Description)?;
+    tree.action_row(3, "刷新课表", "立即重读文件", EVENT_REFRESH, true)?;
+    tree.action_row(4, "清空本地课表", "删除已导入数据", EVENT_CLEAR, true)?;
+    tree.end()?;
     commit(tree, app.generation)
 }

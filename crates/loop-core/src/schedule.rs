@@ -146,6 +146,7 @@ mod tests {
             period_label: String::from("第1-2节"),
             weeks_start: ws,
             weeks_end: we,
+            week_interval: 1,
         }
     }
 
@@ -188,5 +189,16 @@ mod tests {
         let result = now_and_next(&courses, &term, clock);
         assert!(result.now.is_none());
         assert!(result.next.is_none());
+    }
+
+    #[test]
+    fn biweekly_interval() {
+        let mut c = course(1, 1, 470, 560, 1, 5);
+        c.week_interval = 2;
+        assert!(c.active_in_week(1));
+        assert!(!c.active_in_week(2));
+        assert!(c.active_in_week(3));
+        assert!(!c.active_in_week(4));
+        assert!(c.active_in_week(5));
     }
 }

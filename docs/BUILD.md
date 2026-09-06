@@ -65,5 +65,4 @@ cargo test -p loop-device --no-default-features
 ## 注意
 
 - Loop 的 ctor 已内置 `.rodata.cst8` 锚点，**不依赖** Lyra 的 Windows overlay。
-- `appicon_loop.bin` 当前可为占位图标；正式发布前请替换为 Loop 专用 LVGL v9 图标。
 - 私钥勿提交进 git。

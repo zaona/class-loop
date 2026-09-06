@@ -1,4 +1,4 @@
-//! 原生应用注册：固定 8-bit app id、Launcher 入口与四页描述符。
+//! 原生应用注册：固定 8-bit app id、Launcher 入口与五页描述符。
 //!
 //! app 注册（stage 1）与 Launcher 发布（stage 2）刻意拆开，
 //! 以便 miwear 先处理 app-registry 事件再持久化 Launcher。
@@ -12,14 +12,8 @@ use super::ui_backend;
 
 /// 与 Lyra `0x00CC` 错开，避免 app 冲突。
 pub const APP_ID: u16 = 0x00CD;
-pub const PAGE_COUNT: usize = 4;
+pub const PAGE_COUNT: usize = 5;
 pub const PAGE_HOME: usize = 0;
-#[allow(dead_code)]
-pub const PAGE_TODAY: usize = 1;
-#[allow(dead_code)]
-pub const PAGE_WEEK: usize = 2;
-#[allow(dead_code)]
-pub const PAGE_DETAIL: usize = 3;
 
 pub const PACKAGE_NAME: &[u8] = b"com.canopus.loop\0";
 pub const DISPLAY_NAME: &[u8] = b"Loop\0";
@@ -29,6 +23,7 @@ const PAGE_NAMES: [&[u8]; PAGE_COUNT] = [
     b"loop_today\0",
     b"loop_week\0",
     b"loop_detail\0",
+    b"loop_data\0",
 ];
 
 static mut APP_DESCRIPTOR: core::mem::MaybeUninit<launcher_app_descriptor> =

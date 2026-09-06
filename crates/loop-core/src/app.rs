@@ -12,6 +12,7 @@ pub enum Route {
     Today,
     Week,
     Detail,
+    Data,
 }
 
 impl Route {
@@ -21,6 +22,7 @@ impl Route {
             Self::Today => 1,
             Self::Week => 2,
             Self::Detail => 3,
+            Self::Data => 4,
         }
     }
 
@@ -30,6 +32,7 @@ impl Route {
             1 => Some(Self::Today),
             2 => Some(Self::Week),
             3 => Some(Self::Detail),
+            4 => Some(Self::Data),
             _ => None,
         }
     }
@@ -38,6 +41,10 @@ impl Route {
 #[derive(Clone, Debug)]
 pub enum Effect {
     Navigate(Route),
+    /// 立即从快应用沙箱重读 schedule.json。
+    ReloadFromDisk,
+    /// 删除沙箱中的 schedule.json 并清空内存课表。
+    ClearStoredSchedule,
 }
 
 #[derive(Clone, Debug)]
@@ -49,6 +56,9 @@ pub enum Action {
     SelectCourse(u32),
     Tick(ClockHint),
     Reload(ScheduleFile),
+    RefreshSchedule,
+    ClearSchedule,
+    SetDataStatus(String),
 }
 
 #[derive(Clone, Debug, Default)]
@@ -59,8 +69,7 @@ pub struct LoopApp {
     pub clock: Option<ClockHint>,
     pub selected_weekday: u8,
     pub selected_course_id: Option<u32>,
-    pub from_override: bool,
-    pub error: Option<String>,
+    pub data_status: String,
     pub generation: u32,
 }
 
@@ -108,7 +117,6 @@ impl LoopApp {
         match action {
             Action::Boot(file) | Action::Reload(file) => {
                 self.schedule = file;
-                self.error = None;
                 self.bump();
             }
             Action::Open(route) => {
@@ -117,6 +125,15 @@ impl LoopApp {
                         if let Some(clock) = self.clock {
                             self.selected_weekday = clock.weekday;
                         }
+                    }
+                    if route == Route::Data {
+                        self.data_status = if self.schedule.courses.is_empty()
+                            && self.schedule.term.name.is_empty()
+                        {
+                            String::from("尚未导入课表")
+                        } else {
+                            alloc::format!("当前 {} 门课", self.schedule.courses.len())
+                        };
                     }
                     self.history.push(self.route);
                     self.route = route;
@@ -135,8 +152,6 @@ impl LoopApp {
                 self.selected_weekday = weekday;
                 self.history.push(self.route);
                 self.route = Route::Today;
-                // Today 页在「从本周点进来」时展示 selected_weekday；
-                // 若从首页进 Today，selected_weekday 会被 Tick/Open 设为今天。
                 self.bump();
                 effects.push(Effect::Navigate(Route::Today));
             }
@@ -161,6 +176,16 @@ impl LoopApp {
                 if changed {
                     self.bump();
                 }
+            }
+            Action::RefreshSchedule => {
+                effects.push(Effect::ReloadFromDisk);
+            }
+            Action::ClearSchedule => {
+                effects.push(Effect::ClearStoredSchedule);
+            }
+            Action::SetDataStatus(status) => {
+                self.data_status = status;
+                self.bump();
             }
         }
         effects
