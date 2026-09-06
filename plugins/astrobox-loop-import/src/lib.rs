@@ -68,6 +68,13 @@ impl lifecycle::Guest for LoopImportPlugin {
             .with_ansi(false)
             .compact()
             .init();
+        tracing::info!(
+            "BUILD_INFO time={} user={} branch={} hash={}",
+            option_env!("AB_BUILD_TIME").unwrap_or("unknown"),
+            option_env!("AB_BUILD_USER").unwrap_or("unknown"),
+            option_env!("AB_BUILD_GIT_BRANCH").unwrap_or("unknown"),
+            option_env!("AB_BUILD_GIT_HASH").unwrap_or("unknown")
+        );
         interconnect::refresh_devices();
         state::with_state(|state| {
             state.status = if state.devices.is_empty() {

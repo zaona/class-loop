@@ -24,9 +24,17 @@ pub struct PreparedSchedule {
     pub course_count: usize,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum MainTab {
+    #[default]
+    Import,
+    Settings,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct UiState {
     pub root: Option<String>,
+    pub current_tab: MainTab,
     pub devices: Vec<DeviceInfo>,
     pub selected_addr: String,
     pub prepared: Option<PreparedSchedule>,
