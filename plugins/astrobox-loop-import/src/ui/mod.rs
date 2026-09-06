@@ -6,15 +6,18 @@ use crate::astrobox::psys_host::{
     dialog::{self, FilterConfig, PickConfig},
     ui_v3 as ui,
 };
-use crate::{interconnect, publish, state};
+use crate::{ics::IcsSource, interconnect, publish, state};
 
 const EVENT_PICK: &str = "action:file.schedule";
 const EVENT_REFRESH: &str = "action:devices.refresh";
 const EVENT_PUSH: &str = "action:publish.start";
 const EVENT_DEVICE: &str = "input:device";
-const EVENT_TERM_NAME: &str = "input:term.name";
-const EVENT_TERM_START: &str = "input:term.start";
-const EVENT_RECONVERT: &str = "action:ics.reconvert";
+const EVENT_ICS_SOURCE: &str = "input:ics.source";
+const EVENT_EDIT_TERM_NAME: &str = "action:term.name.edit";
+const EVENT_EDIT_TERM_START: &str = "action:term.start.edit";
+const EVENT_TERM_DRAFT: &str = "input:term.draft";
+const EVENT_TERM_APPLY: &str = "action:term.apply";
+const EVENT_TERM_CANCEL: &str = "action:term.cancel";
 const EVENT_TAB_IMPORT: &str = "tab:import";
 const EVENT_TAB_SETTINGS: &str = "tab:settings";
 const EVENT_OPEN_HELP: &str = "action:open.help";
@@ -82,20 +85,56 @@ pub fn on_event(event_id: &str, payload: &str) {
                 }
             });
         }
-        EVENT_TERM_NAME => {
-            state::with_state(|state| {
-                state.term_name = payload.value.unwrap_or_default();
+        EVENT_ICS_SOURCE => {
+            let value = payload.value.unwrap_or_default();
+            let Some(source) = IcsSource::from_label(&value) else {
+                return;
+            };
+            let need_reconvert = state::with_state(|state| {
+                if state.ics_source == source {
+                    return false;
+                }
+                state.ics_source = source;
+                clear_term_editing(state);
+                if !source.supported() {
+                    state.prepared = None;
+                    state.status = format!(
+                        "{} 的 ICS 适配尚未完成，请选择已支持的来源。",
+                        source.label()
+                    );
+                    return false;
+                }
+                state.prepared.is_some()
             });
-        }
-        EVENT_TERM_START => {
-            state::with_state(|state| {
-                state.term_start = payload.value.unwrap_or_default();
-            });
-        }
-        EVENT_RECONVERT => {
-            if let Err(error) = publish::refresh_prepared_from_state() {
-                state::with_state(|state| state.status = format!("重新转换失败：{error}"));
+            if need_reconvert {
+                // 换来源时重新自动推断学期，避免沿用上一来源的起始日。
+                if let Err(error) = publish::reconvert_prepared_inferred() {
+                    state::with_state(|state| {
+                        state.status = format!("切换来源后重新转换失败：{error}");
+                    });
+                } else {
+                    sync_term_fields_from_prepared();
+                }
             }
+            rerender();
+        }
+        EVENT_EDIT_TERM_NAME => {
+            edit_term_field(TermField::Name);
+            rerender();
+        }
+        EVENT_EDIT_TERM_START => {
+            edit_term_field(TermField::Start);
+            rerender();
+        }
+        EVENT_TERM_DRAFT => {
+            on_term_draft_input(payload.value.unwrap_or_default());
+        }
+        EVENT_TERM_APPLY => {
+            apply_term_draft();
+            rerender();
+        }
+        EVENT_TERM_CANCEL => {
+            cancel_term_draft();
             rerender();
         }
         EVENT_PUSH => {
@@ -107,6 +146,12 @@ pub fn on_event(event_id: &str, payload: &str) {
     }
 }
 
+#[derive(Clone, Copy)]
+enum TermField {
+    Name,
+    Start,
+}
+
 fn pick_file() {
     let result = wit_bindgen::block_on(
         dialog::pick_file(
@@ -116,7 +161,7 @@ fn pick_file() {
             },
             &FilterConfig {
                 multiple: false,
-                extensions: vec!["ics".to_string(), "json".to_string()],
+                extensions: vec!["ics".to_string()],
                 default_directory: String::new(),
                 default_file_name: String::new(),
             },
@@ -128,43 +173,155 @@ fn pick_file() {
     }
     let path = format!("media/{}", result.name);
     let snapshot = state::snapshot();
-    let term_name = state::empty_to_none(&snapshot.term_name);
-    let term_start = state::empty_to_none(&snapshot.term_start);
-    match publish::prepare_file(&path, &result.name, term_name, term_start) {
-        Ok(prepared) => state::with_state(|state| {
-            let kind = match prepared.kind {
-                state::SourceKind::Ics => "ICS",
-                state::SourceKind::Json => "JSON",
-            };
+    if !snapshot.ics_source.supported() {
+        state::with_state(|state| {
             state.status = format!(
-                "已解析 {kind}，共 {} 门课。可推送到手表。",
-                prepared.course_count
+                "{} 的 ICS 适配尚未完成，请选择已支持的来源。",
+                snapshot.ics_source.label()
             );
-            if prepared.kind == state::SourceKind::Ics {
-                if state.term_name.trim().is_empty() {
-                    if let Some(name) = prepared
-                        .schedule
-                        .pointer("/term/name")
-                        .and_then(|v| v.as_str())
-                    {
-                        state.term_name = name.to_string();
-                    }
-                }
-                if state.term_start.trim().is_empty() {
-                    if let Some(start) = prepared
-                        .schedule
-                        .pointer("/term/start_date")
-                        .and_then(|v| v.as_str())
-                    {
-                        state.term_start = start.to_string();
-                    }
-                }
-            }
-            state.prepared = Some(prepared);
-        }),
-        Err(error) => state::with_state(|state| state.status = format!("文件无效：{error}")),
+        });
+        rerender();
+        return;
+    }
+
+    // 选文件时始终按当前来源自动推断学期，写入列表默认值。
+    match publish::prepare_file(&path, &result.name, snapshot.ics_source, None, None) {
+        Ok(prepared) => {
+            let course_count = prepared.course_count;
+            let source_label = snapshot.ics_source.label().to_string();
+            state::with_state(|state| {
+                clear_term_editing(state);
+                state.prepared = Some(prepared);
+                state.status = format!(
+                    "已按 {source_label} 解析，共 {course_count} 门课。可推送到手表。"
+                );
+            });
+            sync_term_fields_from_prepared();
+        }
+        Err(error) => {
+            state::with_state(|state| {
+                clear_term_editing(state);
+                state.status = format!("文件无效：{error}");
+            });
+        }
     }
     rerender();
+}
+
+fn clear_term_editing(state: &mut state::UiState) {
+    state.editing_term = None;
+    state.term_draft.clear();
+}
+
+fn sync_term_fields_from_prepared() {
+    state::with_state(|state| {
+        let Some(prepared) = state.prepared.as_ref() else {
+            return;
+        };
+        if let Some(name) = prepared
+            .schedule
+            .pointer("/term/name")
+            .and_then(|v| v.as_str())
+        {
+            state.term_name = name.to_string();
+        }
+        if let Some(start) = prepared
+            .schedule
+            .pointer("/term/start_date")
+            .and_then(|v| v.as_str())
+        {
+            state.term_start = start.to_string();
+        }
+    });
+}
+
+fn edit_term_field(field: TermField) {
+    let snapshot = state::snapshot();
+    if snapshot.prepared.is_none() {
+        state::with_state(|state| {
+            state.status = "请先选择课表 .ics 文件。".to_string();
+        });
+        return;
+    }
+
+    // 改为页内编辑，避免 AstroBox Input 弹窗：spawn 弹不出、block_on 点遮罩会挂起。
+    state::with_state(|state| {
+        state.editing_term = Some(match field {
+            TermField::Name => state::EditingTerm::Name,
+            TermField::Start => state::EditingTerm::Start,
+        });
+        state.term_draft = match field {
+            TermField::Name => state.term_name.clone(),
+            TermField::Start => state.term_start.clone(),
+        };
+    });
+}
+
+fn on_term_draft_input(value: String) {
+    state::with_state(|state| {
+        state.term_draft = value;
+    });
+}
+
+fn apply_term_draft() {
+    let snapshot = state::snapshot();
+    let Some(editing) = snapshot.editing_term else {
+        return;
+    };
+    let next = snapshot.term_draft.trim().to_string();
+    if next.is_empty() {
+        state::with_state(|state| {
+            state.status = "请输入有效内容后再保存。".to_string();
+            state.editing_term = None;
+            state.term_draft.clear();
+        });
+        return;
+    }
+
+    let unchanged = match editing {
+        state::EditingTerm::Name => next == snapshot.term_name,
+        state::EditingTerm::Start => next == snapshot.term_start,
+    };
+    state::with_state(|state| {
+        if !unchanged {
+            match editing {
+                state::EditingTerm::Name => state.term_name = next,
+                state::EditingTerm::Start => state.term_start = next,
+            }
+        }
+        state.editing_term = None;
+        state.term_draft.clear();
+    });
+    if unchanged {
+        return;
+    }
+
+    if let Err(error) = publish::refresh_prepared_from_state() {
+        state::with_state(|state| {
+            state.status = format!("按学期设置转换失败：{error}");
+        });
+        return;
+    }
+    let snapshot = state::snapshot();
+    state::with_state(|state| {
+        state.status = format!(
+            "学期已更新：{} · {}；共 {} 门课。",
+            snapshot.term_name,
+            snapshot.term_start,
+            snapshot
+                .prepared
+                .as_ref()
+                .map(|item| item.course_count)
+                .unwrap_or(0)
+        );
+    });
+}
+
+fn cancel_term_draft() {
+    state::with_state(|state| {
+        state.editing_term = None;
+        state.term_draft.clear();
+    });
 }
 
 fn start_push() {
@@ -173,14 +330,15 @@ fn start_push() {
         state::with_state(|state| state.status = "推送进行中，请稍候。".to_string());
         return;
     }
-    let Some(prepared) = snapshot.prepared else {
-        state::with_state(|state| state.status = "请先选择 .ics 或 schedule.json。".to_string());
-        return;
+    let schedule = match publish::schedule_for_push() {
+        Ok(schedule) => schedule,
+        Err(error) => {
+            state::with_state(|state| state.status = format!("无法开始推送：{error}"));
+            return;
+        }
     };
-    let result = wit_bindgen::block_on(publish::start(
-        &snapshot.selected_addr,
-        prepared.schedule,
-    ));
+    let addr = state::snapshot().selected_addr;
+    let result = wit_bindgen::block_on(publish::start(&addr, schedule));
     if let Err(error) = result {
         state::with_state(|state| state.status = format!("无法开始推送：{error}"));
     }
@@ -193,7 +351,7 @@ fn show_help() {
             dialog::DialogStyle::Website,
             &dialog::DialogInfo {
                 title: "使用说明".to_string(),
-                content: "1. 在手表上打开 Loop Import 并保持前台\n2. 选择已连接的目标设备\n3. 选择课表 .ics 或 schedule.json\n4. 如有需要填写学期名称与起始日\n5. 点击「推送到手表」".to_string(),
+                content: "1. 在手表上打开 Loop Import 并保持前台\n2. 选择目标设备\n3. 选择 ICS 来源（WakeUp / WeekDown / Nexio）\n4. 选择课表 .ics 文件（学期名称/起始日会自动推断）\n5. 如需修改学期，点击右侧笔图标后在列表内编辑\n6. 推送到手表".to_string(),
                 buttons: vec![dialog::DialogButton {
                     id: "ok".to_string(),
                     primary: true,
@@ -254,39 +412,14 @@ fn build_import_tab(snapshot: &state::UiState) -> ui::Element {
         .width_full();
 
     root = root
-        .child(build_file_card(snapshot).margin_bottom(8))
         .child(build_device_card(snapshot).margin_bottom(8))
-        .child(
-            build_input_card(
-                icons::notebook_svg(),
-                "学期名称",
-                "ICS 转换时使用，可留空",
-                &snapshot.term_name,
-                EVENT_TERM_NAME,
-            )
-            .margin_bottom(8),
-        )
-        .child(
-            build_input_card(
-                icons::calendar_svg(),
-                "学期起始日",
-                "格式 YYYY-MM-DD，可留空",
-                &snapshot.term_start,
-                EVENT_TERM_START,
-            )
-            .margin_bottom(8),
-        );
+        .child(build_source_card(snapshot).margin_bottom(8))
+        .child(build_file_card(snapshot).margin_bottom(8));
 
-    if snapshot
-        .prepared
-        .as_ref()
-        .is_some_and(|item| item.kind == state::SourceKind::Ics)
-    {
-        root = root.child(
-            build_icon_text_button("按学期设置重新转换", icons::convert_svg(), EVENT_RECONVERT)
-                .bg("#2A2A2A")
-                .margin_bottom(8),
-        );
+    if snapshot.prepared.is_some() {
+        root = root
+            .child(build_term_name_card(snapshot).margin_bottom(8))
+            .child(build_term_start_card(snapshot).margin_bottom(8));
     }
 
     if !snapshot.status.is_empty() {
@@ -335,6 +468,15 @@ fn build_settings_tab() -> ui::Element {
                 Some("操作步骤与导入注意事项"),
                 Some(build_more_link_icon()),
                 Some(EVENT_OPEN_HELP),
+            ),
+        )
+        .child(
+            build_settings_card(
+                icons::mail_svg(),
+                "申请适配ICS来源",
+                Some("sodiumcode@qq.com"),
+                None,
+                None,
             )
             .margin_bottom(10),
         )
@@ -369,22 +511,156 @@ fn build_settings_tab() -> ui::Element {
         ))
 }
 
+fn build_term_name_card(snapshot: &state::UiState) -> ui::Element {
+    if snapshot.editing_term == Some(state::EditingTerm::Name) {
+        return build_term_editor_card(
+            icons::notebook_svg(),
+            "学期名称",
+            &snapshot.term_draft,
+            "输入学期名称",
+        );
+    }
+    let value = if snapshot.term_name.trim().is_empty() {
+        "未推断"
+    } else {
+        snapshot.term_name.as_str()
+    };
+    build_settings_card(
+        icons::notebook_svg(),
+        "学期名称",
+        Some(value),
+        Some(build_edit_pen_icon()),
+        Some(EVENT_EDIT_TERM_NAME),
+    )
+}
+
+fn build_term_start_card(snapshot: &state::UiState) -> ui::Element {
+    if snapshot.editing_term == Some(state::EditingTerm::Start) {
+        return build_term_editor_card(
+            icons::calendar_svg(),
+            "学期起始日",
+            &snapshot.term_draft,
+            "YYYY-MM-DD",
+        );
+    }
+    let value = if snapshot.term_start.trim().is_empty() {
+        "未推断"
+    } else {
+        snapshot.term_start.as_str()
+    };
+    build_settings_card(
+        icons::calendar_svg(),
+        "学期起始日",
+        Some(value),
+        Some(build_edit_pen_icon()),
+        Some(EVENT_EDIT_TERM_START),
+    )
+}
+
+fn build_term_editor_card(
+    icon_svg: String,
+    title: &str,
+    draft: &str,
+    placeholder: &str,
+) -> ui::Element {
+    let header = build_settings_row(icon_svg, title, Some(placeholder), None);
+    let input = ui::Element::new(ui::ElementType::Input, Some(draft))
+        .on(ui::Event::Change, EVENT_TERM_DRAFT)
+        .on(ui::Event::Input, EVENT_TERM_DRAFT)
+        .radius(12)
+        .bg("#2A2A2A")
+        .height(40)
+        .width_full()
+        .padding_left(12)
+        .padding_right(12)
+        .size(14);
+    let save = ui::Element::new(ui::ElementType::Button, Some("保存"))
+        .without_default_styles()
+        .on(ui::Event::Click, EVENT_TERM_APPLY)
+        .flex_grow(1.0)
+        .height(36)
+        .radius(10)
+        .bg("#0090FF26")
+        .text_color("#0090FF")
+        .flex()
+        .align_center()
+        .justify_center();
+    let cancel = ui::Element::new(ui::ElementType::Button, Some("取消"))
+        .without_default_styles()
+        .on(ui::Event::Click, EVENT_TERM_CANCEL)
+        .flex_grow(1.0)
+        .height(36)
+        .radius(10)
+        .bg("#2A2A2A")
+        .text_color("#FFFFFF")
+        .flex()
+        .align_center()
+        .justify_center();
+    let actions = ui::Element::new(ui::ElementType::Div, None)
+        .flex()
+        .width_full()
+        .gap(8)
+        .child(cancel)
+        .child(save);
+    ui::Element::new(ui::ElementType::Div, None)
+        .flex()
+        .flex_direction(ui::FlexDirection::Column)
+        .width_full()
+        .bg("#1E1E1F")
+        .radius(18)
+        .padding_left(12)
+        .padding_right(12)
+        .padding_top(10)
+        .padding_bottom(12)
+        .child(header.margin_bottom(8))
+        .child(input.margin_bottom(8))
+        .child(actions)
+}
+
+fn build_edit_pen_icon() -> ui::Element {
+    ui::Element::new(ui::ElementType::Svg, Some(&icons::pencil_svg()))
+        .width(18)
+        .height(18)
+        .text_color("#888888")
+}
+
+fn build_source_card(snapshot: &state::UiState) -> ui::Element {
+    let mut select = ui::Element::new(ui::ElementType::Select, Some(snapshot.ics_source.label()))
+        .on(ui::Event::Change, EVENT_ICS_SOURCE)
+        .radius(8)
+        .padding_left(12)
+        .padding_right(12)
+        .bg("#2A2A2A")
+        .size(14);
+    for source in IcsSource::ALL {
+        select = select.child(ui::Element::new(
+            ui::ElementType::Option,
+            Some(source.label()),
+        ));
+    }
+    let desc = if snapshot.ics_source.supported() {
+        "按导出 App 选择适配器，提高转换准确度"
+    } else {
+        "该来源适配尚未完成"
+    };
+    build_settings_card(
+        icons::source_svg(),
+        "ICS 来源",
+        Some(desc),
+        Some(select),
+        None,
+    )
+}
+
 fn build_file_card(snapshot: &state::UiState) -> ui::Element {
     let desc = match &snapshot.prepared {
-        Some(file) => {
-            let kind = match file.kind {
-                state::SourceKind::Ics => "ICS",
-                state::SourceKind::Json => "JSON",
-            };
-            format!(
-                "{} · {} · {} 门课 · {}",
-                file.name,
-                kind,
-                file.course_count,
-                format_bytes(file.size)
-            )
-        }
-        None => "选择 .ics 或 schedule.json".to_string(),
+        Some(file) => format!(
+            "{} · {} 门课 · {}",
+            file.name,
+            file.course_count,
+            format_bytes(file.size)
+        ),
+        None => "从本地选择课表 .ics".to_string(),
     };
     let arrow = ui::Element::new(ui::ElementType::Svg, Some(&icons::chevron_right_svg()))
         .width(18)
@@ -392,7 +668,7 @@ fn build_file_card(snapshot: &state::UiState) -> ui::Element {
         .text_color("#888888");
     build_settings_card(
         icons::file_svg(),
-        "课表文件",
+        "课表 ICS",
         Some(desc.as_str()),
         Some(arrow),
         Some(EVENT_PICK),
@@ -453,39 +729,6 @@ fn build_device_card(snapshot: &state::UiState) -> ui::Element {
         ),
         None,
     )
-}
-
-fn build_input_card(
-    icon_svg: String,
-    title: &str,
-    desc: &str,
-    value: &str,
-    event_id: &str,
-) -> ui::Element {
-    let header = build_settings_row(icon_svg, title, Some(desc), None);
-    // 与天气插件一致：用 content 承载当前值，而不是 default-value prop。
-    let input = ui::Element::new(ui::ElementType::Input, Some(value))
-        .on(ui::Event::Change, event_id)
-        .on(ui::Event::Input, event_id)
-        .radius(12)
-        .bg("#2A2A2A")
-        .height(40)
-        .width_full()
-        .padding_left(12)
-        .padding_right(12)
-        .size(14);
-    ui::Element::new(ui::ElementType::Div, None)
-        .flex()
-        .flex_direction(ui::FlexDirection::Column)
-        .width_full()
-        .bg("#1E1E1F")
-        .radius(18)
-        .padding_left(12)
-        .padding_right(12)
-        .padding_top(10)
-        .padding_bottom(12)
-        .child(header.margin_bottom(8))
-        .child(input)
 }
 
 fn build_settings_card(

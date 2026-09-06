@@ -7,10 +7,10 @@
 ## 1. 架构
 
 ```text
-课表.ics / schedule.json
+课表.ics（本地文件来源）
           │
           ▼
-AstroBox Loop Import 插件（.ics 在插件内转换）
+AstroBox Loop Import 插件（插件内 ICS→JSON）
           │  interconnect: top.zaona.loopimport
           ▼
 Vela Loop Import 快应用
@@ -23,7 +23,8 @@ Loop 原生课表应用
 ```
 
 快应用必须保持前台运行以便接收消息。插件只向 `top.zaona.loopimport` 收发。
-ICS 转换语义与 `scripts/ics-to-schedule.py` 对齐（WEEKLY RRULE / INTERVAL / UNTIL / COUNT / BYDAY / EXDATE）。
+ICS 转换按「来源」方言适配：当前支持 **WakeUp**、**WeekDown**、**Nexio** 课程表。
+转换语义与 `scripts/ics-to-schedule.py` 对齐（WEEKLY RRULE / INTERVAL / UNTIL / COUNT / BYDAY / EXDATE；WeekDown / Nexio 为按周展开 VEVENT 合并，Nexio 以 DESCRIPTION `第N周` 为准）。
 主机脚本可用于离线校验；Loop 固件不内置课表样例。
 
 ## 2. 传输约束

@@ -80,7 +80,7 @@ impl lifecycle::Guest for LoopImportPlugin {
             state.status = if state.devices.is_empty() {
                 "未发现已连接设备。".to_string()
             } else {
-                "请打开手表上的 Loop Import，然后选择课表 ICS 或 schedule.json。"
+                "请打开手表上的 Loop Import，选择 ICS 来源后导入课表。"
                     .to_string()
             };
         });

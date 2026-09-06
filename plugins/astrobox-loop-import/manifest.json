@@ -1,8 +1,8 @@
 {
   "name": "Loop课表导入",
   "icon": "icon.png",
-  "version": "0.2.1",
-  "description": "将课表 ICS 或 schedule.json 经 Loop Import 快应用推送到手表，供 Loop 原生模块读取",
+  "version": "0.2.5",
+  "description": "按 ICS 课表经 Loop Import 推送到手表",
   "author": "zaona",
   "website": "",
   "entry": "astrobox_plugin_loop_import.wasm",

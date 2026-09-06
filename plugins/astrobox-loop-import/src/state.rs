@@ -2,11 +2,7 @@ use std::sync::{Mutex, OnceLock};
 
 use serde_json::Value;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SourceKind {
-    Json,
-    Ics,
-}
+use crate::ics::IcsSource;
 
 #[derive(Clone, Debug, Default)]
 pub struct DeviceInfo {
@@ -19,7 +15,6 @@ pub struct PreparedSchedule {
     pub name: String,
     pub path: String,
     pub size: u64,
-    pub kind: SourceKind,
     pub schedule: Value,
     pub course_count: usize,
 }
@@ -31,15 +26,24 @@ pub enum MainTab {
     Settings,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EditingTerm {
+    Name,
+    Start,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct UiState {
     pub root: Option<String>,
     pub current_tab: MainTab,
+    pub ics_source: IcsSource,
     pub devices: Vec<DeviceInfo>,
     pub selected_addr: String,
     pub prepared: Option<PreparedSchedule>,
     pub term_name: String,
     pub term_start: String,
+    pub editing_term: Option<EditingTerm>,
+    pub term_draft: String,
     pub status: String,
     pub busy: bool,
 }

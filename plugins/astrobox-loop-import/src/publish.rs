@@ -35,6 +35,7 @@ fn pending() -> &'static Mutex<Option<Pending>> {
 pub fn prepare_file(
     path: &str,
     name: &str,
+    source: ics::IcsSource,
     term_name: Option<&str>,
     term_start: Option<&str>,
 ) -> Result<state::PreparedSchedule, String> {
@@ -47,36 +48,20 @@ pub fn prepare_file(
         .and_then(|value| value.to_str())
         .unwrap_or("")
         .to_ascii_lowercase();
-    let (kind, schedule) = match extension.as_str() {
-        "json" => {
-            if metadata.len() as usize > MAX_SCHEDULE_BYTES {
-                return Err(format!(
-                    "schedule.json exceeds {MAX_SCHEDULE_BYTES} bytes limit"
-                ));
-            }
-            let text =
-                fs::read_to_string(path).map_err(|error| format!("cannot read file: {error}"))?;
-            let value: Value =
-                serde_json::from_str(&text).map_err(|error| format!("invalid JSON: {error}"))?;
-            validate_schedule(&value)?;
-            (state::SourceKind::Json, value)
-        }
-        "ics" => {
-            if metadata.len() > MAX_ICS_BYTES {
-                return Err("ICS file exceeds 2 MiB".to_string());
-            }
-            let value = ics::convert_ics_file(path, term_name, term_start)?;
-            validate_schedule(&value)?;
-            let encoded = value.to_string();
-            if encoded.len() > MAX_SCHEDULE_BYTES {
-                return Err(format!(
-                    "converted schedule exceeds {MAX_SCHEDULE_BYTES} bytes"
-                ));
-            }
-            (state::SourceKind::Ics, value)
-        }
-        _ => return Err("unsupported file extension; expect .ics or .json".to_string()),
-    };
+    if extension != "ics" {
+        return Err("unsupported file extension; expect .ics".to_string());
+    }
+    if metadata.len() > MAX_ICS_BYTES {
+        return Err("ICS file exceeds 2 MiB".to_string());
+    }
+    let schedule = ics::convert_ics_file(path, source, term_name, term_start)?;
+    validate_schedule(&schedule)?;
+    let encoded = schedule.to_string();
+    if encoded.len() > MAX_SCHEDULE_BYTES {
+        return Err(format!(
+            "converted schedule exceeds {MAX_SCHEDULE_BYTES} bytes"
+        ));
+    }
     let course_count = schedule
         .get("courses")
         .and_then(Value::as_array)
@@ -86,31 +71,86 @@ pub fn prepare_file(
         name: name.to_string(),
         path: path.to_string(),
         size: metadata.len(),
-        kind,
         schedule,
         course_count,
     })
 }
 
 pub fn refresh_prepared_from_state() -> Result<(), String> {
+    refresh_prepared(false)
+}
+
+/// 切换 ICS 来源时：丢弃当前学期字段，按新来源重新自动推断。
+pub fn reconvert_prepared_inferred() -> Result<(), String> {
+    refresh_prepared(true)
+}
+
+fn refresh_prepared(infer_terms: bool) -> Result<(), String> {
     let snapshot = state::snapshot();
     let Some(prepared) = snapshot.prepared else {
         return Ok(());
     };
-    if prepared.kind != state::SourceKind::Ics {
-        return Ok(());
-    }
-    let term_name = state::empty_to_none(&snapshot.term_name);
-    let term_start = state::empty_to_none(&snapshot.term_start);
-    let next = prepare_file(&prepared.path, &prepared.name, term_name, term_start)?;
+    let (term_name, term_start) = if infer_terms {
+        (None, None)
+    } else {
+        (
+            state::empty_to_none(&snapshot.term_name),
+            state::empty_to_none(&snapshot.term_start),
+        )
+    };
+    let next = prepare_file(
+        &prepared.path,
+        &prepared.name,
+        snapshot.ics_source,
+        term_name,
+        term_start,
+    )?;
     state::with_state(|state| {
         state.status = format!(
-            "已用学期设置重新转换 ICS，共 {} 门课。",
+            "已按 {} 重新转换，共 {} 门课。",
+            snapshot.ics_source.label(),
             next.course_count
         );
         state.prepared = Some(next);
     });
     Ok(())
+}
+
+fn media_unavailable(path: &str) -> bool {
+    match fs::metadata(path) {
+        Ok(meta) => !meta.is_file() || meta.len() == 0,
+        Err(_) => true,
+    }
+}
+
+/// 推送前尽量按当前学期重转；若原 ICS 已不可用，则回退已缓存的 schedule。
+pub fn schedule_for_push() -> Result<Value, String> {
+    let snapshot = state::snapshot();
+    let Some(prepared) = snapshot.prepared else {
+        return Err("请先选择课表 .ics 文件。".to_string());
+    };
+    if media_unavailable(&prepared.path) {
+        validate_schedule(&prepared.schedule)?;
+        return Ok(prepared.schedule);
+    }
+    let term_name = state::empty_to_none(&snapshot.term_name);
+    let term_start = state::empty_to_none(&snapshot.term_start);
+    match prepare_file(
+        &prepared.path,
+        &prepared.name,
+        snapshot.ics_source,
+        term_name,
+        term_start,
+    ) {
+        Ok(next) => {
+            let schedule = next.schedule.clone();
+            state::with_state(|state| {
+                state.prepared = Some(next);
+            });
+            Ok(schedule)
+        }
+        Err(error) => Err(error),
+    }
 }
 
 pub async fn start(addr: &str, schedule: Value) -> Result<(), String> {
@@ -273,7 +313,7 @@ async fn handle_hello(addr: &str, value: &Value) -> Result<(), String> {
     };
 
     state::with_state(|state| {
-        state.status = "正在推送 schedule.json…".to_string();
+        state.status = "正在推送课表…".to_string();
     });
     interconnect::send(
         addr,

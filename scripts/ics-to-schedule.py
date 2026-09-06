@@ -359,6 +359,11 @@ def event_weekdays(event: Event) -> list[int]:
     return [iso_weekday(event.dtstart)]
 
 
+def monday_of_week(day: date) -> date:
+    """返回 day 所在 ISO 周（周一…周日）的周一。"""
+    return day - timedelta(days=day.weekday())  # Monday=0
+
+
 def convert(
     events: list[Event],
     term_name: str,
@@ -367,7 +372,8 @@ def convert(
     if not events:
         raise SystemExit("ICS 中没有可用的 VEVENT")
     if term_start is None:
-        term_start = min(e.dtstart.date() for e in events)
+        # 第 1 教学周从最早上课日所在周的周一起算。
+        term_start = monday_of_week(min(e.dtstart.date() for e in events))
 
     courses: list[dict] = []
     next_id = 1
@@ -442,7 +448,7 @@ def main() -> int:
         "--term-start",
         type=parse_ymd,
         default=None,
-        help="学期第 1 周起始日 YYYY-MM-DD（默认取最早 DTSTART 日期）",
+        help="学期第 1 周起始日 YYYY-MM-DD（默认取最早上课日所在周的周一）",
     )
     parser.add_argument(
         "--utc-offset-hours",
@@ -462,7 +468,7 @@ def main() -> int:
     events = parse_ics(text, args.utc_offset_hours)
     term_start = args.term_start
     if term_start is None and events:
-        term_start = min(e.dtstart.date() for e in events)
+        term_start = monday_of_week(min(e.dtstart.date() for e in events))
     term_name = args.term_name
     if term_name is None and term_start is not None:
         # 8–12 月视为秋，否则春

@@ -1,15 +1,15 @@
 # Loop 课表数据格式（schedule.json）
 
-设备端只读 JSON，不解析 ICS。课表由 AstroBox 插件从 ICS/JSON 推送到快应用沙箱；
+设备端只读 JSON，不解析 ICS。课表由 AstroBox 插件从本地 `.ics` 转换后推送到快应用沙箱；
 主机也可用 `scripts/ics-to-schedule.py` 做离线转换。**固件不含内置课表。**
 
 ## 谁写入、谁读取
 
 ```text
-课表.ics / schedule.json
+课表.ics（本地文件来源）
         │
         ▼
-AstroBox 插件 plugins/astrobox-loop-import（ICS 可在插件内转换）
+AstroBox 插件 plugins/astrobox-loop-import（按 ICS 来源方言转换，支持 WakeUp / WeekDown / Nexio）
         │ interconnect
         ▼
 快应用 top.zaona.loopimport
