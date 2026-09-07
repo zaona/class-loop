@@ -1,7 +1,7 @@
 # Loop 课表数据格式（schedule.json）
 
-设备端只读 JSON，不解析 ICS。课表由 AstroBox 插件从本地 `.ics` 转换后推送到快应用沙箱；
-主机也可用 `scripts/ics-to-schedule.py` 做离线转换。**固件不含内置课表。**
+设备端只读 JSON，不解析 ICS。课表由 AstroBox 插件从本地 `.ics` 转换后推送到快应用沙箱。
+**固件不含内置课表。**
 
 ## 谁写入、谁读取
 
@@ -24,7 +24,6 @@ loop-device / loop-core
 
 - 快应用工程：`quickapps/loop-import`
 - 手机插件：`plugins/astrobox-loop-import`（协议见 [SCHEDULE_IMPORT_PROTOCOL.md](SCHEDULE_IMPORT_PROTOCOL.md)）
-- 主机脚本：`scripts/ics-to-schedule.py`（离线转换；输出本地 JSON，不进固件）
 - 文件缺失或非法：Loop 显示空课表（「尚未导入课表」），不回退样例
 
 ## Schema（version = 1）
@@ -75,12 +74,6 @@ week ∈ [weeks_start, weeks_end] 且 (week - weeks_start) % week_interval == 0
 
 ## ICS → JSON
 
-```sh
-python scripts/ics-to-schedule.py path/to/课表.ics
-python scripts/ics-to-schedule.py 课表.ics --check
-python scripts/ics-to-schedule.py 课表.ics \
-  --term-name 2026秋 --term-start 2026-08-31 \
-  -o schedule.json
-```
-
-转换器支持的 ICS 子集见脚本头部注释。只更新快应用沙箱 JSON 时无需重编 Loop。
+由 `plugins/astrobox-loop-import` 按 ICS 来源方言**独立**转换（WakeUp / WeekDown / Nexio）。
+三源对同一人课表应得到一致的课名、星期、起止分钟、地点（去校区前缀后）与教学周区间。
+只更新快应用沙箱 JSON 时无需重编 Loop。

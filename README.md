@@ -63,15 +63,7 @@ docs/SCHEDULE_IMPORT_PROTOCOL.md  插件↔快应用协议
 
 ## 课表数据
 
-见 [docs/SCHEDULE.md](docs/SCHEDULE.md)。主机转换（设备不解析 ICS）：
-
-```sh
-python scripts/ics-to-schedule.py path/to/课表.ics
-python scripts/ics-to-schedule.py path/to/课表.ics --check
-python scripts/ics-to-schedule.py path/to/课表.ics \
-  --term-name 2026秋 --term-start 2026-08-31 \
-  -o schedule.json
-```
+见 [docs/SCHEDULE.md](docs/SCHEDULE.md)。设备不解析 ICS；由 AstroBox 插件转换后推送。
 
 手机推送：打开手表 **Loop Import** 前台，在 AstroBox 安装 `plugins/astrobox-loop-import` 构建出的 `.abp`，选择 ICS 来源（WakeUp / WeekDown / Nexio）后导入本地 `.ics` 推送。协议见 [docs/SCHEDULE_IMPORT_PROTOCOL.md](docs/SCHEDULE_IMPORT_PROTOCOL.md)。
 

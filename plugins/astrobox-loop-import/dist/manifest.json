@@ -1,7 +1,7 @@
 {
   "name": "Loop课表导入",
   "icon": "icon.png",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "将 ICS 课表经 Loop Import 推送到手表",
   "author": "zaona",
   "website": "",

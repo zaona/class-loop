@@ -23,9 +23,11 @@ Loop 原生课表应用
 ```
 
 快应用必须保持前台运行以便接收消息。插件只向 `top.zaona.loopimport` 收发。
-ICS 转换按「来源」方言适配：当前支持 **WakeUp**、**WeekDown**、**Nexio** 课程表。
-转换语义与 `scripts/ics-to-schedule.py` 对齐（WEEKLY RRULE / INTERVAL / UNTIL / COUNT / BYDAY / EXDATE；WeekDown / Nexio 为按周展开 VEVENT 合并，Nexio 以 DESCRIPTION `第N周` 为准）。
-主机脚本可用于离线校验；Loop 固件不内置课表样例。
+ICS 转换按「来源」方言**独立**适配：当前支持 **WakeUp**、**WeekDown**、**Nexio** 课程表。
+- WakeUp：WEEKLY RRULE，按 UNTIL/COUNT 展开发生日；DESCRIPTION 取节次
+- WeekDown：按周展开 VEVENT 合并；DESCRIPTION 取教师
+- Nexio：按周展开；DESCRIPTION `第N周` 为准（并据此可反推学期起点）
+地点统一为「去校区前缀后的教室 + 教师」。Loop 固件不内置课表样例。
 
 ## 2. 传输约束
 
