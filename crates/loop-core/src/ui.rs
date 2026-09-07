@@ -8,7 +8,6 @@ use canopus_ui_core::{
 use crate::{
     LoopApp, Route,
     model::{format_hm, weekday_name},
-    persistence::truncate_label,
 };
 
 pub const EVENT_BACK: u32 = 1;
@@ -49,37 +48,20 @@ fn home(app: &LoopApp) -> Result<Snapshot, UiError> {
     // StatusRow：左侧「现在/下一节」，右侧「课名 · 节次 · 地点」整段。
     let now_value = match nn.now {
         Some(c) => {
-            let name = truncate_label(&c.name, 10);
             if c.period_label.is_empty() {
-                format!("{} · {}", name, truncate_label(&c.location, 12))
+                format!("{} · {}", c.name, c.location)
             } else {
-                format!(
-                    "{} · {} · {}",
-                    name,
-                    c.period_label,
-                    truncate_label(&c.location, 10)
-                )
+                format!("{} · {} · {}", c.name, c.period_label, c.location)
             }
         }
         None => alloc::string::String::from("暂无课程"),
     };
     let next_value = match nn.next {
         Some(c) => {
-            let name = truncate_label(&c.name, 10);
             if c.period_label.is_empty() {
-                format!(
-                    "{} · {} {}",
-                    name,
-                    format_hm(c.start_min),
-                    truncate_label(&c.location, 10)
-                )
+                format!("{} · {} {}", c.name, format_hm(c.start_min), c.location)
             } else {
-                format!(
-                    "{} · {} · {}",
-                    name,
-                    c.period_label,
-                    truncate_label(&c.location, 10)
-                )
+                format!("{} · {} · {}", c.name, c.period_label, c.location)
             }
         }
         None => alloc::string::String::from("没有下一节"),
@@ -130,7 +112,6 @@ fn today(app: &LoopApp) -> Result<Snapshot, UiError> {
     tree.text(2, hint, TextStyle::Description)?;
     for (index, course) in courses.iter().enumerate() {
         let key = 10 + index as u32;
-        let label = truncate_label(&course.name, 14);
         let detail = format!(
             "{} {}",
             if course.period_label.is_empty() {
@@ -138,9 +119,15 @@ fn today(app: &LoopApp) -> Result<Snapshot, UiError> {
             } else {
                 course.period_label.clone()
             },
-            truncate_label(&course.location, 8)
+            course.location
         );
-        tree.action_row(key, &label, &detail, EVENT_COURSE_BASE + course.id, true)?;
+        tree.action_row(
+            key,
+            &course.name,
+            &detail,
+            EVENT_COURSE_BASE + course.id,
+            true,
+        )?;
     }
     tree.end()?;
     commit(tree, app.generation)
@@ -184,11 +171,11 @@ fn detail(app: &LoopApp) -> Result<Snapshot, UiError> {
         <_ as View<UiEvent>>::render(&view, &mut tree)?;
         return commit(tree, app.generation);
     };
-    let name = truncate_label(&course.name, 18);
+    let name = course.name.as_str();
     let location = if course.location.is_empty() {
-        alloc::string::String::from("—")
+        "—"
     } else {
-        truncate_label(&course.location, 20)
+        course.location.as_str()
     };
     let period = if course.period_label.is_empty() {
         course.time_range_label()
@@ -204,7 +191,7 @@ fn detail(app: &LoopApp) -> Result<Snapshot, UiError> {
         children: (
             Text {
                 key: 2,
-                text: name.as_str(),
+                text: name,
                 style: TextStyle::Title
             },
             StatusRow {
@@ -220,7 +207,7 @@ fn detail(app: &LoopApp) -> Result<Snapshot, UiError> {
             StatusRow {
                 key: 5,
                 label: "地点",
-                value: location.as_str()
+                value: location
             },
             StatusRow {
                 key: 6,

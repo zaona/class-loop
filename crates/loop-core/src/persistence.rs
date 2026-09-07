@@ -3,7 +3,7 @@
 //! 只读快应用 `top.zaona.loopimport` 沙箱中的 schedule.json；
 //! 文件缺失时由调用方保持空课表，不内置样例。
 
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
 
 use crate::model::{SCHEDULE_VERSION, ScheduleFile};
@@ -67,16 +67,4 @@ pub fn load_schedule<S: Store>(
             .map_err(map_parse_error),
         Err(error) => Err(PersistenceError::Storage(error)),
     }
-}
-
-pub fn truncate_label(text: &str, max_chars: usize) -> String {
-    let mut out = String::new();
-    for (index, ch) in text.chars().enumerate() {
-        if index >= max_chars {
-            out.push('…');
-            break;
-        }
-        out.push(ch);
-    }
-    out
 }

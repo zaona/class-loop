@@ -438,6 +438,9 @@ pub fn apply_snapshot(page_index: usize, snapshot: &Snapshot) -> i32 {
         unsafe {
             lvx_object_set_size(backend.content_root, CONTENT_WIDTH, CONTENT_HEIGHT);
             lvx_object_align(backend.content_root, ALIGN_TOP_MID, 0, CONTENT_TOP_OFFSET);
+            // Match stock Settings / Canopus Manager: preserve bottom scroll padding
+            // so the last row is not flush against the content edge (EVID-UI-WIDGET-001).
+            lvx_object_set_content_pad_bottom(backend.content_root, 32, 0);
         }
     }
 
