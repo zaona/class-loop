@@ -345,22 +345,7 @@ fn start_push() {
 }
 
 fn show_help() {
-    wit_bindgen::block_on(async move {
-        let _ = dialog::show_dialog(
-            dialog::DialogType::Alert,
-            dialog::DialogStyle::Website,
-            &dialog::DialogInfo {
-                title: "使用说明".to_string(),
-                content: "1. 在手表上打开 Loop Import 并保持前台\n2. 选择目标设备\n3. 选择 ICS 来源（WakeUp / WeekDown / Nexio）\n4. 选择课表 .ics 文件（学期名称/起始日会自动推断）\n5. 如需修改学期，点击右侧笔图标后在列表内编辑\n6. 推送到手表".to_string(),
-                buttons: vec![dialog::DialogButton {
-                    id: "ok".to_string(),
-                    primary: true,
-                    content: "确定".to_string(),
-                }],
-            },
-        )
-        .await;
-    });
+    dialog::open_url("https://loop.zaona.top/");
 }
 
 fn build_root() -> ui::Element {
