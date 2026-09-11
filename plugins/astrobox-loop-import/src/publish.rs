@@ -43,13 +43,11 @@ pub fn prepare_file(
     if !metadata.is_file() || metadata.len() == 0 {
         return Err("selected file is empty".to_string());
     }
-    let extension = Path::new(name)
-        .extension()
-        .and_then(|value| value.to_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    if extension != "ics" {
-        return Err("unsupported file extension; expect .ics".to_string());
+    if !has_ics_extension(name) && !has_ics_extension(path) && !file_looks_like_ics(path)? {
+        let shown = if name.is_empty() { path } else { name };
+        return Err(format!(
+            "不支持的文件类型（{shown}）。请选择 .ics 课表文件"
+        ));
     }
     if metadata.len() > MAX_ICS_BYTES {
         return Err("ICS file exceeds 2 MiB".to_string());
@@ -68,12 +66,57 @@ pub fn prepare_file(
         .map(|items| items.len())
         .unwrap_or(0);
     Ok(state::PreparedSchedule {
-        name: name.to_string(),
+        name: display_ics_name(name, path),
         path: path.to_string(),
         size: metadata.len(),
         schedule,
         course_count,
     })
+}
+
+fn has_ics_extension(value: &str) -> bool {
+    Path::new(value)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("ics"))
+        .unwrap_or(false)
+}
+
+fn file_looks_like_ics(path: &str) -> Result<bool, String> {
+    let mut file = fs::File::open(path).map_err(|error| format!("cannot open file: {error}"))?;
+    use std::io::Read;
+    let mut buf = [0u8; 256];
+    let n = file
+        .read(&mut buf)
+        .map_err(|error| format!("cannot read file: {error}"))?;
+    Ok(bytes_look_like_ics(&buf[..n]))
+}
+
+fn bytes_look_like_ics(bytes: &[u8]) -> bool {
+    let text = match std::str::from_utf8(bytes) {
+        Ok(text) => text,
+        Err(_) => return false,
+    };
+    let trimmed = text.trim_start_matches('\u{feff}').trim_start();
+    trimmed.len() >= 15 && trimmed[..15].eq_ignore_ascii_case("BEGIN:VCALENDAR")
+}
+
+fn display_ics_name(name: &str, path: &str) -> String {
+    let base = if name.is_empty() {
+        Path::new(path)
+            .file_name()
+            .and_then(|v| v.to_str())
+            .unwrap_or(path)
+    } else {
+        name
+    };
+    if has_ics_extension(base) {
+        base.to_string()
+    } else if base.is_empty() {
+        "schedule.ics".to_string()
+    } else {
+        format!("{base}.ics")
+    }
 }
 
 pub fn refresh_prepared_from_state() -> Result<(), String> {

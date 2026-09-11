@@ -156,22 +156,43 @@ fn pick_file() {
     let result = wit_bindgen::block_on(
         dialog::pick_file(
             &PickConfig {
-                read: false,
+                // 部分宿主复制到 media 后文件名可能无扩展名；读回内容便于内容嗅探兜底。
+                read: true,
                 copy_to: Some("media".to_string()),
             },
             &FilterConfig {
                 multiple: false,
-                extensions: vec!["ics".to_string()],
+                // 兼容宿主对「带/不带点」两种写法的过滤。
+                extensions: vec!["ics".to_string(), ".ics".to_string()],
                 default_directory: String::new(),
                 default_file_name: String::new(),
             },
         )
         .into_future(),
     );
-    if result.name.is_empty() {
+    if result.name.is_empty() && result.data.is_empty() {
         return;
     }
-    let path = format!("media/{}", result.name);
+
+    let mut name = result.name;
+    if name.is_empty() {
+        name = "schedule.ics".to_string();
+    }
+    let path = format!("media/{name}");
+    let media_missing = std::fs::metadata(&path)
+        .map(|meta| !meta.is_file() || meta.len() == 0)
+        .unwrap_or(true);
+    if media_missing && !result.data.is_empty() {
+        if let Err(error) = std::fs::write(&path, &result.data) {
+            state::with_state(|state| {
+                clear_term_editing(state);
+                state.status = format!("无法保存所选文件：{error}");
+            });
+            rerender();
+            return;
+        }
+    }
+
     let snapshot = state::snapshot();
     if !snapshot.ics_source.supported() {
         state::with_state(|state| {
@@ -185,7 +206,7 @@ fn pick_file() {
     }
 
     // 选文件时始终按当前来源自动推断学期，写入列表默认值。
-    match publish::prepare_file(&path, &result.name, snapshot.ics_source, None, None) {
+    match publish::prepare_file(&path, &name, snapshot.ics_source, None, None) {
         Ok(prepared) => {
             let course_count = prepared.course_count;
             let source_label = snapshot.ics_source.label().to_string();
