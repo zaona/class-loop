@@ -1,6 +1,6 @@
 {
   "name": "loop-import-quickapp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Vela companion that publishes schedule.json for Loop",
   "engines": {

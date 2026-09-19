@@ -1,11 +1,24 @@
 <template>
   <div class="page" onswipe="onSwipe">
-    <image class="back" src="/common/back.png" onclick="onBack"></image>
-    <text class="time">{{ time }}</text>
-    <text class="nav-title">同步内容</text>
-    <image class="hero" src="{{ heroSrc }}"></image>
-    <text class="headline">{{ headline }}</text>
-    <text class="hint">{{ hint }}</text>
+    <div class="header">
+      <image class="back back-narrow" src="/common/back-narrow.png" onclick="onBack"></image>
+      <image class="back back-wide" src="/common/back.png" onclick="onBack"></image>
+      <div class="header-center">
+        <text class="time">{{ time }}</text>
+        <text class="nav-title">同步内容</text>
+      </div>
+      <div class="header-spacer"></div>
+    </div>
+    <div class="content">
+      <image class="hero" src="{{ heroSrc }}"></image>
+      <marquee
+        class="headline"
+        scrollamount="25"
+        loop="-1"
+        text-offset="32"
+      >{{ headline }}</marquee>
+      <text class="hint">{{ hint }}</text>
+    </div>
   </div>
 </template>
 
@@ -295,77 +308,150 @@ export default {
 </script>
 
 <style>
+/* 默认：窄屏（胶囊屏等，水平 DP < 160） */
 .page {
   width: 100%;
   height: 100%;
+  flex-direction: column;
+  align-items: center;
   background-color: #000000;
 }
+.header {
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 6px;
+}
 .back {
-  position: absolute;
-  left: 6px;
-  top: 6px;
-  width: 72px;
-  height: 72px;
+  flex-shrink: 0;
   object-fit: contain;
 }
+.back-narrow {
+  width: 102px;
+  height: 72px;
+}
+.back-wide {
+  width: 0px;
+  height: 0px;
+  opacity: 0;
+}
+.header-spacer {
+  width: 0px;
+  height: 0px;
+  flex-shrink: 0;
+}
+.header-center {
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 40px;
+}
 .time {
-  position: absolute;
-  left: 0px;
-  top: 10px;
-  width: 336px;
-  height: 32px;
-  font-size: 24px;
-  line-height: 32px;
-  font-weight: bold;
-  color: #999999;
-  text-align: center;
+  width: 100%;
+  height: 0px;
+  font-size: 0px;
+  line-height: 0px;
+  opacity: 0;
+  lines: 1;
 }
 .nav-title {
-  position: absolute;
-  left: 0px;
-  top: 40px;
-  width: 336px;
-  height: 40px;
-  font-size: 32px;
-  line-height: 40px;
+  width: 100%;
+  font-size: 30px;
+  line-height: 38px;
   font-weight: normal;
   color: #FFFFFF;
   text-align: center;
 }
+.content {
+  width: 100%;
+  flex-grow: 1;
+  flex-direction: column;
+  align-items: center;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 30px;
+}
 .hero {
-  position: absolute;
-  left: 104px;
-  top: 146px;
   width: 128px;
   height: 128px;
+  flex-shrink: 0;
   object-fit: contain;
 }
 .headline {
-  position: absolute;
-  left: 16px;
-  top: 300px;
-  width: 304px;
-  height: 40px;
-  font-size: 32px;
-  line-height: 40px;
+  width: 100%;
+  margin-top: 32px;
+  font-size: 30px;
+  line-height: 38px;
   font-weight: normal;
   color: #FFFFFF;
   text-align: center;
-  lines: 1;
-  text-overflow: ellipsis;
 }
 .hint {
-  position: absolute;
-  left: 24px;
-  top: 358px;
-  width: 288px;
-  height: 72px;
-  font-size: 26px;
-  line-height: 36px;
+  width: 100%;
+  margin-top: 16px;
+  font-size: 22px;
+  line-height: 30px;
   font-weight: normal;
   color: #999999;
   text-align: center;
   lines: 2;
   text-overflow: ellipsis;
+}
+
+/* 宽屏：水平 DP >= 160（如手环 9 Pro / 10 Pro） */
+@media (min-width: 160) {
+  .back-narrow {
+    width: 0px;
+    height: 0px;
+    opacity: 0;
+  }
+  .back-wide {
+    width: 72px;
+    height: 72px;
+    opacity: 1;
+  }
+  .header {
+    flex-direction: row;
+    align-items: flex-start;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+  .header-spacer {
+    width: 72px;
+    height: 72px;
+  }
+  .header-center {
+    flex-grow: 1;
+    margin-top: 0px;
+    padding-top: 4px;
+  }
+  .time {
+    height: 32px;
+    font-size: 24px;
+    line-height: 32px;
+    font-weight: bold;
+    color: #999999;
+    text-align: center;
+    opacity: 1;
+  }
+  .nav-title {
+    font-size: 32px;
+    line-height: 40px;
+  }
+  .content {
+    padding-left: 24px;
+    padding-right: 24px;
+    padding-top: 48px;
+  }
+  .headline {
+    margin-top: 28px;
+    font-size: 32px;
+    line-height: 40px;
+  }
+  .hint {
+    margin-top: 18px;
+    font-size: 26px;
+    line-height: 36px;
+  }
 }
 </style>
