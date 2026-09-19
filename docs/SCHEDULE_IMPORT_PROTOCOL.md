@@ -16,8 +16,8 @@ AstroBox Loop Import 插件（插件内 ICS→JSON）
 Vela Loop Import 快应用
           │  internal://files/loop/schedule.json
           ▼
-/data/files/top.zaona.loopimport/loop/schedule.json
-          │  只读
+/data/files/... 或 /data/quickapp/files/.../loop/schedule.json
+          │  只读（设备端回退 Band 11 沙箱根）
           ▼
 Loop 原生课表应用
 ```

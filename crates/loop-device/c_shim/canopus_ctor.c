@@ -20,7 +20,9 @@ const uint8_t canopus_rodata_str1_1_anchor[4] = {0xA7, 0x5C, 0xD3, 0x00};
 __attribute__((section(".rodata.cst8"), used, aligned(8)))
 const uint8_t canopus_rodata_cst8_anchor[8] = {0x5C, 0xA7, 0xD3, 0x00, 0x37, 0x1A, 0x9C, 0x00};
 
+#if !CANOPUS_STATIC_CANDIDATE
 extern void canopus_decode_opaque_words(void) __attribute__((weak));
+#endif
 
 __attribute__((constructor)) static void canopus_mod_ctor(void)
 {
@@ -31,9 +33,11 @@ __attribute__((constructor)) static void canopus_mod_ctor(void)
                      "r"(canopus_rodata_str1_1_anchor),
                      "r"(canopus_rodata_cst8_anchor) : "memory");
 
+#if !CANOPUS_STATIC_CANDIDATE
     if (canopus_decode_opaque_words != 0) {
         canopus_decode_opaque_words();
     }
+#endif
     (void)canopus_mod_prepare(0);
     (void)canopus_register_module_descriptor();
 }

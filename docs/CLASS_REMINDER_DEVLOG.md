@@ -1,6 +1,7 @@
 # 上课提醒功能：开发过程记录
 
-> 状态：**已回退代码**（2026-09-06）。本文仅作备忘，便于以后重新评估。  
+> 状态：**已回退代码**（2026-09-06）。本文仅作备忘。  
+> **后续决策（2026-09-10）：只做 Path C**，见 [`CLASS_REMINDER_PATH_C.md`](CLASS_REMINDER_PATH_C.md)；Canopus 候选证据 `EVID-REMINDER-001/002`。  
 > 相关对话：Cursor agent transcript `574171fc-826a-4d4f-86e4-c1cbc43b49e4`。
 
 ## 1. 目标

@@ -103,6 +103,9 @@ unsafe fn apply_misans(object: *mut core::ffi::c_void) {
 }
 
 fn wrapped_label_height(text: &str) -> i32 {
+    // Match Lyra: do not scale the 20-unit wrap by CONTENT_WIDTH. Band 11 is
+    // 212px but uses 28px MiSans, so a width-only ratio over-wraps `学期 · 第N周`
+    // and leaves a large empty box above the first list row.
     const HALF_WIDTH_UNITS_PER_LINE: u32 = 20;
     const LINE_HEIGHT: i32 = 44;
 

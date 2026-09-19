@@ -8,10 +8,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::{SCHEDULE_VERSION, ScheduleFile};
 
-/// 快应用 `internal://files/loop` 映射到设备上的目录。
+/// 快应用 `internal://files/loop` 在 10 Pro 上的物理目录。
 pub const IMPORT_ROOT: &str = "/data/files/top.zaona.loopimport/loop";
 
-/// 原生模块读取的课表清单路径。
+/// Band 11 等机型把同一沙箱映射到 `/data/quickapp/files/...`。
+pub const LEGACY_IMPORT_ROOT: &str = "/data/quickapp/files/top.zaona.loopimport/loop";
+
+/// 原生模块读取的课表清单路径（逻辑路径；设备端会回退到 LEGACY_IMPORT_ROOT）。
 pub const SCHEDULE_PATH: &str = "/data/files/top.zaona.loopimport/loop/schedule.json";
 
 pub trait Store {

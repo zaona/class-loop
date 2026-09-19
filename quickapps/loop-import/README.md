@@ -10,7 +10,7 @@
 
 > **请勿在导入课后删除本快应用。** 卸载会清空已发布的 `schedule.json`。
 
-物理路径：`/data/files/top.zaona.loopimport/loop/schedule.json`。
+物理路径：10 Pro 为 `/data/files/top.zaona.loopimport/loop/schedule.json`；Band 11 常见为 `/data/quickapp/files/top.zaona.loopimport/loop/schedule.json`。Loop 原生会按此回退读取。
 
 保持本页前台打开，由 AstroBox 插件推送课表。Loop 无内置课表：未推送时腕上显示「尚未导入课表」。
 

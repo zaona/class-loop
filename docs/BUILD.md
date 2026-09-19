@@ -47,13 +47,25 @@ CANOPUS_TARGET=xiaomi-band-10-pro-3.101.043 \
 - `build/<target>/receipt.bin` — CMI1 收据
 - `watchfaces/loop/module.bin` + `receipt.bin` — 安装表盘载荷
 
-## 双 target 生产包
+指定 Band 11 `.139`：
+
+```sh
+CANOPUS_TARGET=xiaomi-band-11-4.100.139 \
+  /d/Canopus/class-loop/scripts/build-install-watchface.sh
+```
+
+## 按设备生产包
+
+不指定设备时构建 10 Pro（036+043）与 Band 11（139+155）：
 
 ```sh
 /d/Canopus/class-loop/scripts/build-install-watchface-prod.sh
+/d/Canopus/class-loop/scripts/build-install-watchface-prod.sh xiaomi-band-11
 ```
 
-产出 `watchfaces/loop-prod/loop-<target>.bin` 与 `.cmi.bin`，安装器按 `ro.build.version` 选择 payload。
+产出 `watchfaces/loop-prod/<device>/`：该目录的 `main.lua` 与 `loop-<target>.bin` / `.cmi.bin`。
+安装器按 `ro.build.version`（及 Band 11 的 `ro.build.id`）选择 payload。
+Band 11 使用 `/canopus/install`，10 Pro 仍可走 `/dev/canopus`。
 
 ## 主机测试
 

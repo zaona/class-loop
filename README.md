@@ -30,10 +30,10 @@ D:\Canopus\
 
 - 首页：现在 / 下一节 / 今日剩余
 - 今日、本周、课程详情、数据管理（手动刷新 / 清空本地课表）
-- 运行时课表：快应用 `top.zaona.loopimport` → `/data/files/top.zaona.loopimport/loop/schedule.json`（无文件则空课表）
+- 运行时课表：快应用 `top.zaona.loopimport` → `/data/files/.../schedule.json`，Band 11 回退 `/data/quickapp/files/...`（无文件则空课表）
 - 快应用工程：`quickapps/loop-import`
 - AstroBox 插件：`plugins/astrobox-loop-import`（推送 `schedule.json`）
-- 目标：Band 10 Pro `3.101.036` + `3.101.043`
+- 目标：Band 10 Pro `3.101.036` + `3.101.043`，Band 11 `4.100.139` + `4.100.155`
 
 不做：腕上编辑、上课提醒、固件内置课表。
 
@@ -46,7 +46,7 @@ quickapps/loop-import/            手表快应用（落盘 schedule.json）
 plugins/astrobox-loop-import/     AstroBox 课表导入插件
 scripts/                          ICS 转换与交叉编译
 watchfaces/loop/                  单 target 安装表盘
-watchfaces/loop-prod/             036+043 生产安装表盘
+watchfaces/loop-prod/             按设备分目录的生产安装表盘
 docs/BUILD.md                     Windows 构建说明
 docs/SCHEDULE_IMPORT_PROTOCOL.md  插件↔快应用协议
 ```
@@ -59,7 +59,13 @@ docs/SCHEDULE_IMPORT_PROTOCOL.md  插件↔快应用协议
 . /d/Canopus/Canopus-Build/env.sh
 /d/Canopus/class-loop/scripts/build-install-watchface.sh
 /d/Canopus/class-loop/scripts/build-install-watchface-prod.sh
+/d/Canopus/class-loop/scripts/build-install-watchface-prod.sh xiaomi-band-11
 ```
+
+不指定设备时分别构建 10 Pro（`.036`、`.043` 同目录）与 Band 11（`.139`、`.155` 同目录）。
+产物在 `watchfaces/loop-prod/xiaomi-band-10-pro/` 与 `watchfaces/loop-prod/xiaomi-band-11/`，各目录根部仅有一个 `main.lua` 与 `.bin` 资源。
+Band 11 安装器走 `/canopus/install`，需先更新 Canopus 框架 Supervisor。
+Band 11 使用 212 宽内容区、`on_ui_destroy` 页面销毁槽位，以及 `.139` / `.155` 各自的 Rust 绑定；真机显示仍待验证。
 
 ## 课表数据
 

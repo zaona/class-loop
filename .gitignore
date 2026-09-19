@@ -5,8 +5,12 @@ __pycache__/
 .DS_Store
 /watchfaces/loop/module.bin
 /watchfaces/loop/receipt.bin
-/watchfaces/loop-prod/*.bin
-/watchfaces/loop-prod/*.cmi.bin
+/watchfaces/loop-prod/*
+!/watchfaces/loop-prod/docs/
+!/watchfaces/loop-prod/xiaomi-band-*/
+/watchfaces/loop-prod/xiaomi-band-*/*
+!/watchfaces/loop-prod/xiaomi-band-*/main.lua
+!/watchfaces/loop-prod/xiaomi-band-*/docs/
 /quickapps/*/node_modules/
 /quickapps/*/build/
 /quickapps/*/dist/

@@ -1,12 +1,15 @@
 //! 只读/删除适配：操作快应用 `top.zaona.loopimport` 沙箱中的课表。
+//!
+//! 10 Pro 落在 `/data/files/...`；Band 11 常见映射是 `/data/quickapp/files/...`。
+//! 读取与清空都先试逻辑路径，没有文件再回退到后者（对齐 Lyra）。
 
-use alloc::vec::Vec;
+use alloc::{format, string::String, vec::Vec};
 use core::ffi::c_void;
 
 use canopus_target_private::{O_RDONLY, nuttx_close, nuttx_open, nuttx_read, nuttx_unlink};
 use loop_core::{
     ScheduleFile,
-    persistence::{self, IMPORT_ROOT, PersistenceError, SCHEDULE_PATH, Store},
+    persistence::{self, IMPORT_ROOT, LEGACY_IMPORT_ROOT, PersistenceError, SCHEDULE_PATH, Store},
 };
 
 const MAX_SCHEDULE_BYTES: usize = 64 * 1024;
@@ -24,20 +27,35 @@ fn c_path(path: &str) -> Result<Vec<u8>, i32> {
     Ok(output)
 }
 
-/// 仅允许快应用课表目录下的路径。
-pub fn resolve_path(path: &str) -> Option<&str> {
-    if path.starts_with(IMPORT_ROOT) {
-        Some(path)
-    } else {
-        None
+fn path_exists(path: &str) -> bool {
+    let Ok(path) = c_path(path) else {
+        return false;
+    };
+    let fd = unsafe { nuttx_open(path.as_ptr(), O_RDONLY) };
+    if fd < 0 {
+        return false;
     }
+    unsafe { nuttx_close(fd) >= 0 }
+}
+
+/// 仅允许快应用课表目录下的路径；优先现存文件，否则回退 Band 11 沙箱根。
+pub fn resolve_path(path: &str) -> Option<String> {
+    if !path.starts_with(IMPORT_ROOT) && !path.starts_with(LEGACY_IMPORT_ROOT) {
+        return None;
+    }
+    if path_exists(path) {
+        return Some(String::from(path));
+    }
+    let relative = path.strip_prefix(IMPORT_ROOT)?.strip_prefix('/')?;
+    let legacy = format!("{LEGACY_IMPORT_ROOT}/{relative}");
+    path_exists(&legacy).then_some(legacy)
 }
 
 fn read_bounded(path: &str, limit: usize) -> Result<Option<Vec<u8>>, i32> {
     let Some(path) = resolve_path(path) else {
         return Ok(None);
     };
-    let path = c_path(path)?;
+    let path = c_path(&path)?;
     let fd = unsafe { nuttx_open(path.as_ptr(), O_RDONLY) };
     if fd < 0 {
         return Ok(None);
@@ -69,9 +87,9 @@ fn read_bounded(path: &str, limit: usize) -> Result<Option<Vec<u8>>, i32> {
 
 fn unlink_path(path: &str) -> Result<(), i32> {
     let Some(path) = resolve_path(path) else {
-        return Err(-1);
+        return Ok(());
     };
-    let path = c_path(path)?;
+    let path = c_path(&path)?;
     let result = unsafe { nuttx_unlink(path.as_ptr()) };
     // 文件本就不存在时也视为成功。
     if result < 0 {

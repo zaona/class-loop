@@ -17,7 +17,8 @@ AstroBox 插件 plugins/astrobox-loop-import（按 ICS 来源方言转换，支�
         │ 映射为
         ▼
 /data/files/top.zaona.loopimport/loop/schedule.json
-        │ Loop 原生只读
+（Band 11 常见为 /data/quickapp/files/top.zaona.loopimport/loop/schedule.json）
+        │ Loop 原生只读；先试前者，没有再读后者
         ▼
 loop-device / loop-core
 ```

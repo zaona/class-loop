@@ -14,6 +14,8 @@ default = []
 device = ["dep:canopus-target-private"]
 target-xiaomi-band-10-pro-3-101-036 = ["device", "canopus-target-private/target-xiaomi-band-10-pro-3-101-036"]
 target-xiaomi-band-10-pro-3-101-043 = ["device", "canopus-target-private/target-xiaomi-band-10-pro-3-101-043"]
+target-xiaomi-band-11-4-100-139 = ["device", "canopus-target-private/target-xiaomi-band-11-4-100-139"]
+target-xiaomi-band-11-4-100-155 = ["device", "canopus-target-private/target-xiaomi-band-11-4-100-155"]
 
 [dependencies]
 loop-core = { path = "../loop-core", default-features = false }
