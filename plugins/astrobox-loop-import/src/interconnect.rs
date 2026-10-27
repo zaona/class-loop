@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::astrobox::psys_host::{device, interconnect, register};
+use crate::astrobox::psys_host_v4::{device, interconnect, register};
 use crate::state::{self, DeviceInfo};
 
 pub const ROUTE_PACKAGE: &str = "top.zaona.loopimport";
@@ -13,8 +13,9 @@ pub struct IncomingMessage {
     pub payload: String,
 }
 
-pub fn refresh_devices() {
-    let devices = wit_bindgen::block_on(device::get_connected_device_list().into_future())
+pub async fn refresh_devices() {
+    let devices = device::get_connected_device_list()
+        .await
         .into_iter()
         .map(|item| DeviceInfo {
             addr: item.addr,
@@ -35,17 +36,17 @@ pub fn refresh_devices() {
                 .unwrap_or_default();
         }
     });
-    register_receivers();
+    register_receivers().await;
 }
 
-pub fn register_receivers() {
+pub async fn register_receivers() {
     let devices = state::snapshot().devices;
     for device in devices {
-        let result = wit_bindgen::block_on(
-            register::register_interconnect_recv(&device.addr, ROUTE_PACKAGE).into_future(),
-        );
-        if result.is_err() {
-            tracing::warn!("failed to register receiver for {}", device.addr);
+        let result =
+            register::register_interconnect_recv(device.addr.clone(), ROUTE_PACKAGE.to_string())
+                .await;
+        if let Err(error) = result {
+            tracing::warn!("failed to register receiver for {}: {}", device.addr, error);
         }
     }
 }
@@ -55,10 +56,9 @@ pub async fn send(addr: &str, value: &Value) -> Result<(), String> {
     if frame.len() > OUTGOING_FRAME_CAPACITY {
         return Err("outgoing interconnect frame exceeds 49152 bytes".to_string());
     }
-    interconnect::send_qaic_message(addr, ROUTE_PACKAGE, &frame)
-        .into_future()
+    interconnect::send_qaic_message(addr.to_string(), ROUTE_PACKAGE.to_string(), frame)
         .await
-        .map_err(|_| "interconnect send failed".to_string())
+        .map_err(|error| format!("interconnect send failed: {error}"))
 }
 
 pub fn parse_event(raw: &str) -> Option<IncomingMessage> {

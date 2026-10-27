@@ -35,6 +35,8 @@ pub enum EditingTerm {
 #[derive(Clone, Debug, Default)]
 pub struct UiState {
     pub root: Option<String>,
+    /// 宿主渲染区宽度（CSS 像素），0 表示未知。
+    pub render_width: u32,
     pub current_tab: MainTab,
     pub ics_source: IcsSource,
     pub devices: Vec<DeviceInfo>,
@@ -46,6 +48,15 @@ pub struct UiState {
     pub term_draft: String,
     pub status: String,
     pub busy: bool,
+}
+
+const COMPACT_MAX_WIDTH: u32 = 608;
+
+impl UiState {
+    /// 宽度未知时按紧凑布局处理，避免首帧溢出。
+    pub fn is_compact_layout(&self) -> bool {
+        self.render_width < COMPACT_MAX_WIDTH
+    }
 }
 
 static STATE: OnceLock<Mutex<UiState>> = OnceLock::new();

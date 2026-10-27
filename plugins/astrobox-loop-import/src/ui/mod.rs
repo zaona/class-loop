@@ -2,9 +2,9 @@ mod icons;
 
 use serde::Deserialize;
 
-use crate::astrobox::psys_host::{
+use crate::astrobox::psys_host_v4::{
     dialog::{self, FilterConfig, PickConfig},
-    ui_v3 as ui,
+    ui,
 };
 use crate::{ics::IcsSource, interconnect, publish, state};
 
@@ -28,8 +28,12 @@ struct UiPayload {
     value: Option<String>,
 }
 
-pub fn render_main_ui(root: &str) {
-    state::with_state(|state| state.root = Some(root.to_string()));
+pub async fn render_main_ui(root: &str) {
+    let size = ui::get_render_size().await;
+    state::with_state(|state| {
+        state.root = Some(root.to_string());
+        state.render_width = size.width;
+    });
     rerender();
 }
 
@@ -39,7 +43,7 @@ pub fn rerender() {
     }
 }
 
-pub fn on_event(event_id: &str, payload: &str) {
+pub async fn on_event(event_id: &str, payload: &str) {
     tracing::info!(event_id, "received Loop Import UI event");
     let payload = serde_json::from_str::<UiPayload>(payload).unwrap_or_default();
     match event_id {
@@ -69,9 +73,9 @@ pub fn on_event(event_id: &str, payload: &str) {
                 rerender();
             }
         }
-        EVENT_PICK => pick_file(),
+        EVENT_PICK => pick_file().await,
         EVENT_REFRESH => {
-            interconnect::refresh_devices();
+            interconnect::refresh_devices().await;
             state::with_state(|state| state.status = "已刷新连接设备。".to_string());
             rerender();
         }
@@ -138,7 +142,7 @@ pub fn on_event(event_id: &str, payload: &str) {
             rerender();
         }
         EVENT_PUSH => {
-            start_push();
+            start_push().await;
             rerender();
         }
         EVENT_OPEN_HELP => show_help(),
@@ -152,24 +156,30 @@ enum TermField {
     Start,
 }
 
-fn pick_file() {
-    let result = wit_bindgen::block_on(
-        dialog::pick_file(
-            &PickConfig {
-                // 部分宿主复制到 media 后文件名可能无扩展名；读回内容便于内容嗅探兜底。
-                read: true,
-                copy_to: Some("media".to_string()),
-            },
-            &FilterConfig {
-                multiple: false,
-                // 兼容宿主对「带/不带点」两种写法的过滤。
-                extensions: vec!["ics".to_string(), ".ics".to_string()],
-                default_directory: String::new(),
-                default_file_name: String::new(),
-            },
-        )
-        .into_future(),
-    );
+async fn pick_file() {
+    let result = dialog::pick_file(
+        PickConfig {
+            // 部分宿主复制到 media 后文件名可能无扩展名；读回内容便于内容嗅探兜底。
+            read: true,
+            copy_to: Some("media".to_string()),
+        },
+        FilterConfig {
+            multiple: false,
+            // 兼容宿主对「带/不带点」两种写法的过滤。
+            extensions: vec!["ics".to_string(), ".ics".to_string()],
+            default_directory: String::new(),
+            default_file_name: String::new(),
+        },
+    )
+    .await;
+    let result = match result {
+        Ok(result) => result,
+        Err(error) => {
+            state::with_state(|state| state.status = format!("选择文件失败：{error}"));
+            rerender();
+            return;
+        }
+    };
     if result.name.is_empty() && result.data.is_empty() {
         return;
     }
@@ -265,7 +275,7 @@ fn edit_term_field(field: TermField) {
         return;
     }
 
-    // 改为页内编辑，避免 AstroBox Input 弹窗：spawn 弹不出、block_on 点遮罩会挂起。
+    // 学期字段使用页内编辑。
     state::with_state(|state| {
         state.editing_term = Some(match field {
             TermField::Name => state::EditingTerm::Name,
@@ -345,7 +355,7 @@ fn cancel_term_draft() {
     });
 }
 
-fn start_push() {
+async fn start_push() {
     let snapshot = state::snapshot();
     if snapshot.busy {
         state::with_state(|state| state.status = "推送进行中，请稍候。".to_string());
@@ -359,7 +369,7 @@ fn start_push() {
         }
     };
     let addr = state::snapshot().selected_addr;
-    let result = wit_bindgen::block_on(publish::start(&addr, schedule));
+    let result = publish::start(&addr, schedule).await;
     if let Err(error) = result {
         state::with_state(|state| state.status = format!("无法开始推送：{error}"));
     }
@@ -371,6 +381,9 @@ fn show_help() {
 
 fn build_root() -> ui::Element {
     let snapshot = state::snapshot();
+    let compact = snapshot.is_compact_layout();
+    let page_padding = if compact { 10 } else { 20 };
+    let page_padding_side = if compact { 0 } else { page_padding };
     let content = match snapshot.current_tab {
         state::MainTab::Import => build_import_tab(&snapshot),
         state::MainTab::Settings => build_settings_tab(),
@@ -379,29 +392,36 @@ fn build_root() -> ui::Element {
         .flex()
         .flex_direction(ui::FlexDirection::Column)
         .width_full()
-        .padding(20)
+        .padding_top(page_padding)
+        .padding_bottom(page_padding)
+        .padding_left(page_padding_side)
+        .padding_right(page_padding_side)
         .child(build_tabs(&snapshot))
         .child(content)
 }
 
 fn build_tabs(snapshot: &state::UiState) -> ui::Element {
+    let compact = snapshot.is_compact_layout();
+    let tabs_pad = if compact { 3 } else { 4 };
     let tabs_list = ui::Element::new(ui::ElementType::TabsList, None)
         .flex()
         .bg("#1E1E1F")
         .radius(999)
-        .padding(4)
-        .gap(4)
+        .padding(tabs_pad)
+        .gap(tabs_pad)
         .child(build_tab_trigger(
             "导入课表",
             icons::send_tab_svg(),
             snapshot.current_tab == state::MainTab::Import,
             EVENT_TAB_IMPORT,
+            compact,
         ))
         .child(build_tab_trigger(
             "设置",
             icons::settings_tab_svg(),
             snapshot.current_tab == state::MainTab::Settings,
             EVENT_TAB_SETTINGS,
+            compact,
         ));
 
     ui::Element::new(ui::ElementType::TabsRoot, None)
@@ -809,26 +829,39 @@ fn build_settings_row(
     row
 }
 
-fn build_tab_trigger(label: &str, icon_svg: String, is_active: bool, event_id: &str) -> ui::Element {
+fn build_tab_trigger(
+    label: &str,
+    icon_svg: String,
+    is_active: bool,
+    event_id: &str,
+    compact: bool,
+) -> ui::Element {
+    // 图标 / 左右内边距 / 上下内边距 / 字号 / 图标与文字间距。
+    let (icon_size, pad_x, pad_y, font, gap) = if compact {
+        (16, 8, 8, 13, 4)
+    } else {
+        (22, 14, 10, 14, 5)
+    };
+
     ui::Element::new(ui::ElementType::TabsTrigger, None)
         .without_default_styles()
         .on(ui::Event::Click, event_id)
         .radius(999)
-        .padding_top(10)
-        .padding_bottom(10)
-        .padding_left(14)
-        .padding_right(14)
+        .padding_top(pad_y)
+        .padding_bottom(pad_y)
+        .padding_left(pad_x)
+        .padding_right(pad_x)
         .bg(if is_active { "#2A2A2A" } else { "#1E1E1F" })
         .text_color(if is_active { "#FFFFFF" } else { "#BBBBBB" })
         .flex()
         .align_center()
-        .gap(5)
+        .gap(gap)
         .child(
             ui::Element::new(ui::ElementType::Svg, Some(&icon_svg))
-                .width(22)
-                .height(22),
+                .width(icon_size)
+                .height(icon_size),
         )
-        .child(ui::Element::new(ui::ElementType::Span, Some(label)).size(14))
+        .child(ui::Element::new(ui::ElementType::Span, Some(label)).size(font))
 }
 
 fn build_icon_text_button(label: &str, icon_svg: String, event_id: &str) -> ui::Element {
