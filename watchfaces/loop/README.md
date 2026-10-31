@@ -1,11 +1,8 @@
-# Loop installer watchface (single target)
+# Loop Launcher icon
 
-Build with `scripts/build-install-watchface.sh`. Opening the watchface installs
-the signed `loop` module through an already-present `/dev/canopus` supervisor.
+The only maintained icon source and binary are in `crates/loop-device/assets/`.
+The duplicate `appicon_loop.bin` in this legacy directory was removed in 0.3.5.
+The module embeds the current icon and writes it to its private data directory before registration.
 
-Tracked assets:
-
-- `main.lua` — installer UI
-- `appicon_loop.bin` — launcher icon (placeholder LVGL v9 BIN; replace for release)
-
-Generated (gitignored): `module.bin`, `receipt.bin`
+Run `sh scripts/build-wsl.sh` in WSL to generate installers under `dist/installer/`.
+This directory only retains historical notes and ignored legacy artifacts.

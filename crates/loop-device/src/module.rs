@@ -5,11 +5,20 @@
 
 use canopus_abi::*;
 use canopus_runtime::{status_put_u32, status_writer_publish};
-use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
 
 static ACTIVE: AtomicBool = AtomicBool::new(false);
 static RESIDENT: AtomicBool = AtomicBool::new(false);
 static LAST_ERROR: AtomicU32 = AtomicU32::new(0);
+static CONTEXT: AtomicPtr<CanopusContext> = AtomicPtr::new(core::ptr::null_mut());
+#[cfg(test)]
+pub(crate) static TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(any(feature = "device", test))]
+pub(crate) fn context() -> Option<&'static CanopusContext> {
+    // The Supervisor owns the context until reboot; Loop stays resident.
+    unsafe { CONTEXT.load(Ordering::Acquire).as_ref() }
+}
 
 /// 状态流魔数：ASCII "LOOP"。
 const MAGIC: u32 = 0x4C4F_4F50;
@@ -26,23 +35,12 @@ const fn pack<const N: usize>(value: &[u8]) -> [u8; N] {
 
 #[cfg(feature = "device")]
 const TARGET_ID: &[u8] = canopus_target_private::TARGET_ID.as_bytes();
-#[cfg(feature = "device")]
-#[repr(C)]
-struct ModuleRegistrationV1 {
-    magic: u32,
-    descriptor: u32,
-    module_id: [u8; 32],
-}
-
-#[cfg(feature = "device")]
-const REGISTRATION_MAGIC: u32 = 0x3152_4d43; // "CMR1"
-#[cfg(feature = "device")]
-const CANOPUS_DEVICE_PATH: &[u8] = b"/dev/canopus\0";
 #[cfg(not(feature = "device"))]
 const TARGET_ID: &[u8] = b"host-test";
 
 #[unsafe(no_mangle)]
-pub extern "C" fn canopus_mod_prepare(_ctx: *const ContextV1) -> i32 {
+pub extern "C" fn canopus_mod_prepare(ctx: *const ContextV1) -> i32 {
+    CONTEXT.store(ctx as *mut CanopusContext, Ordering::Release);
     ACTIVE.store(false, Ordering::Release);
     RESIDENT.store(false, Ordering::Release);
     LAST_ERROR.store(0, Ordering::Release);
@@ -51,11 +49,19 @@ pub extern "C" fn canopus_mod_prepare(_ctx: *const ContextV1) -> i32 {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn canopus_mod_activate(_ctx: *const ContextV1) -> i32 {
+pub extern "C" fn canopus_mod_activate(ctx: *const ContextV1) -> i32 {
+    CONTEXT.store(ctx as *mut CanopusContext, Ordering::Release);
     #[cfg(feature = "device")]
     let result = {
-        crate::target::prepare();
-        crate::target::activate()
+        if required_services(ctx) {
+            crate::target::diagnostics::begin();
+            crate::target::prepare();
+            let rc = crate::target::activate();
+            crate::target::diagnostics::mark("activate.end", rc as usize, 0);
+            rc
+        } else {
+            -38
+        }
     };
     #[cfg(not(feature = "device"))]
     let result = 0;
@@ -66,6 +72,48 @@ pub extern "C" fn canopus_mod_activate(_ctx: *const ContextV1) -> i32 {
         LAST_ERROR.store(result as u32, Ordering::Release);
     }
     result
+}
+
+#[cfg(feature = "device")]
+fn required_services(ctx: *const ContextV1) -> bool {
+    let Some(c) = context() else { return false };
+    [SVC_FS, SVC_MEM, SVC_TIME, SVC_LAUNCHER]
+        .iter()
+        .all(|&group| unsafe { services_has(ctx, group, 1) })
+        && !c.fs.is_null()
+        && !c.mem.is_null()
+        && !c.time.is_null()
+        && !c.launcher.is_null()
+}
+
+#[cfg(any(feature = "device", test))]
+pub(crate) fn register_native_pages(
+    label: &[u8],
+    icon: &[u8],
+    pages: &[*mut core::ffi::c_void],
+) -> Result<u16, i32> {
+    let c = context().ok_or(-38)?;
+    let ctx = (c as *const CanopusContext).cast::<ContextV1>();
+    if !unsafe { services_has(ctx, SVC_LAUNCHER, 1) } || c.launcher.is_null() {
+        return Err(-38);
+    }
+    let entry = AppEntryV1 {
+        struct_size: core::mem::size_of::<AppEntryV1>() as u32,
+        label: label.as_ptr().cast(),
+        icon: icon.as_ptr().cast(),
+        pages: if pages.is_empty() {
+            core::ptr::null()
+        } else {
+            pages.as_ptr()
+        },
+        page_count: pages.len() as u32,
+    };
+    let id = unsafe { ((*c.launcher).register_app)(ctx, &entry) };
+    if id > 0 && id <= u8::MAX as i32 {
+        Ok(id as u16)
+    } else {
+        Err(if id < 0 { id } else { -103 })
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -117,11 +165,15 @@ pub extern "C" fn canopus_mod_publish_native_app(_ctx: *const ContextV1) -> i32 
 #[unsafe(no_mangle)]
 pub extern "C" fn canopus_mod_publish_native_app_stage(_ctx: *const ContextV1, stage: u32) -> i32 {
     #[cfg(feature = "device")]
+    crate::target::diagnostics::mark("publish.begin", stage as usize, 0);
+    #[cfg(feature = "device")]
     let result = crate::target::native_app::install_stage(stage)
         .map(|()| 0)
         .unwrap_or_else(|error| error);
     #[cfg(not(feature = "device"))]
     let result = if matches!(stage, 1 | 2) { 0 } else { -103 };
+    #[cfg(feature = "device")]
+    crate::target::diagnostics::mark("publish.end", stage as usize, result as usize);
     if result != 0 {
         LAST_ERROR.store(result as u32, Ordering::Release);
     }
@@ -141,8 +193,8 @@ pub static canopus_module_descriptor: ModuleDescriptorV1 = ModuleDescriptorV1 {
         | FLAG_APP_UNREGISTER_REBOOT_REQUIRED,
     // 收据 / inbox 文件名 token；必须与构建脚本 TOKEN=loop 一致。
     module_id: pack(b"loop"),
-    module_version: pack(b"0.1.0"),
-    build_id: pack(b"loop-0.1.0"),
+    module_version: pack(env!("CARGO_PKG_VERSION").as_bytes()),
+    build_id: pack(concat!("loop-", env!("CARGO_PKG_VERSION")).as_bytes()),
     target_id: pack(TARGET_ID),
     prepare: Some(canopus_mod_prepare),
     activate: Some(canopus_mod_activate),
@@ -153,35 +205,6 @@ pub static canopus_module_descriptor: ModuleDescriptorV1 = ModuleDescriptorV1 {
     publish_native_app_stage: Some(canopus_mod_publish_native_app_stage),
 };
 
-#[cfg(feature = "device")]
-#[unsafe(no_mangle)]
-pub extern "C" fn canopus_register_module_descriptor() -> i32 {
-    if canopus_target_private::canopus_identity_guard() != 0 {
-        return -1;
-    }
-    let registration = ModuleRegistrationV1 {
-        magic: REGISTRATION_MAGIC,
-        descriptor: core::ptr::addr_of!(canopus_module_descriptor) as usize as u32,
-        module_id: pack(b"loop"),
-    };
-    let fd = unsafe { canopus_target_private::nuttx_open(CANOPUS_DEVICE_PATH.as_ptr(), 2) };
-    if fd < 0 {
-        return fd;
-    }
-    let written = unsafe {
-        canopus_target_private::nuttx_write(
-            fd,
-            core::ptr::addr_of!(registration).cast(),
-            core::mem::size_of::<ModuleRegistrationV1>() as u32,
-        )
-    };
-    let close = unsafe { canopus_target_private::nuttx_close(fd) };
-    if written != core::mem::size_of::<ModuleRegistrationV1>() as i32 {
-        return if written < 0 { written } else { -1 };
-    }
-    close
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn canopus_module_descriptor_ptr() -> *const ModuleDescriptorV1 {
     &canopus_module_descriptor
@@ -191,6 +214,57 @@ pub extern "C" fn canopus_module_descriptor_ptr() -> *const ModuleDescriptorV1 {
 mod tests {
     use super::*;
     use canopus_runtime::status_writer_init;
+    static REGISTER_RESULT: core::sync::atomic::AtomicI32 = core::sync::atomic::AtomicI32::new(0);
+
+    unsafe extern "C" fn register_app(_ctx: *const ContextV1, entry: *const AppEntryV1) -> i32 {
+        let entry = unsafe { &*entry };
+        assert!(matches!(entry.page_count, 0 | 5));
+        assert_eq!(
+            unsafe { core::ffi::CStr::from_ptr(entry.label) }.to_bytes(),
+            b"Loop"
+        );
+        assert_eq!(entry.pages.is_null(), entry.page_count == 0);
+        REGISTER_RESULT.load(Ordering::Relaxed)
+    }
+
+    #[test]
+    fn native_registration_uses_supervisor_id_and_propagates_service_errors() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        let mut services = ServicesV1Head {
+            struct_size: core::mem::size_of::<ServicesV1Head>() as u32,
+            group_version: [0; SVC_GROUP_COUNT as usize],
+        };
+        let launcher = CanopusLauncherObj { register_app };
+        let mut ctx: CanopusContext = unsafe { core::mem::zeroed() };
+        ctx.struct_size = core::mem::size_of::<CanopusContext>() as u32;
+        ctx.services = core::ptr::addr_of!(services).cast();
+        ctx.launcher = &launcher;
+        canopus_mod_prepare(core::ptr::addr_of!(ctx).cast());
+        let pages = [core::ptr::dangling_mut::<core::ffi::c_void>(); 5];
+        let register = || {
+            register_native_pages(
+                b"Loop\0",
+                b"/data/canopus/m.loop/appicon_loop.bin\0",
+                &pages,
+            )
+        };
+        assert_eq!(register(), Err(-38)); // Missing service version.
+        services.group_version[SVC_LAUNCHER as usize] = 1;
+        // Keep the mutation visible through the FFI service-table pointer.
+        core::hint::black_box(&services);
+        REGISTER_RESULT.store(0xD7, Ordering::Relaxed);
+        assert_eq!(register(), Ok(0xD7));
+        assert_eq!(
+            register_native_pages(b"Loop\0", b"/data/canopus/m.loop/appicon_loop.bin\0", &[]),
+            Ok(0xD7)
+        );
+        REGISTER_RESULT.store(-16, Ordering::Relaxed);
+        assert_eq!(register(), Err(-16));
+        REGISTER_RESULT.store(0, Ordering::Relaxed);
+        assert_eq!(register(), Err(-103));
+        canopus_mod_prepare(core::ptr::null());
+        assert_eq!(register(), Err(-38));
+    }
 
     fn read_u32(bytes: &[u8], offset: usize) -> u32 {
         u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap())
@@ -198,6 +272,7 @@ mod tests {
 
     #[test]
     fn query_publishes_host_lifecycle_status() {
+        let _lock = TEST_LOCK.lock().unwrap();
         let mut bytes = [0u8; 16];
         let mut writer = StatusWriterV1 {
             buf: core::ptr::null_mut(),

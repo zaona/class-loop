@@ -41,9 +41,9 @@ impl Route {
 #[derive(Clone, Debug)]
 pub enum Effect {
     Navigate(Route),
-    /// 立即从快应用沙箱重读 schedule.json。
+    /// 立即从模块私有目录重读 schedule.json。
     ReloadFromDisk,
-    /// 删除沙箱中的 schedule.json 并清空内存课表。
+    /// 删除模块私有目录中的 schedule.json 并清空内存课表。
     ClearStoredSchedule,
 }
 
@@ -73,7 +73,51 @@ pub struct LoopApp {
     pub generation: u32,
 }
 
+/// Small rollback state for a rejected firmware push/pop; excludes schedule data.
+pub struct NavigationState {
+    route: Route,
+    history: Vec<Route>,
+    selected_weekday: u8,
+    selected_course_id: Option<u32>,
+    data_status: String,
+}
+
 impl LoopApp {
+    pub fn navigation_state(&self) -> NavigationState {
+        NavigationState {
+            route: self.route,
+            history: self.history.clone(),
+            selected_weekday: self.selected_weekday,
+            selected_course_id: self.selected_course_id,
+            data_status: self.data_status.clone(),
+        }
+    }
+
+    pub fn restore_navigation(&mut self, state: NavigationState) {
+        self.route = state.route;
+        self.history = state.history;
+        self.selected_weekday = state.selected_weekday;
+        self.selected_course_id = state.selected_course_id;
+        self.data_status = state.data_status;
+        self.bump();
+    }
+
+    /// Reconcile the model after the firmware resumes a page (including a swipe).
+    pub fn resume_route(&mut self, route: Route) {
+        if self.route == route {
+            return;
+        }
+        if self.history.last().copied() == Some(route) {
+            self.history.pop();
+        } else if let Some(position) = self.history.iter().rposition(|item| *item == route) {
+            self.history.truncate(position);
+        } else {
+            self.history.clear();
+        }
+        self.route = route;
+        self.bump();
+    }
+
     pub fn bump(&mut self) {
         self.generation = self.generation.wrapping_add(1).max(1);
     }

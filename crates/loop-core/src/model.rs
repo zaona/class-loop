@@ -1,4 +1,4 @@
-//! 课表 JSON 数据模型（由主机 ICS 转换脚本生成，设备端只反序列化）。
+//! 课表 JSON 数据模型（由 AstroBox 插件转换 ICS 生成，设备端只反序列化）。
 
 use alloc::{string::String, vec::Vec};
 use serde::{Deserialize, Serialize};

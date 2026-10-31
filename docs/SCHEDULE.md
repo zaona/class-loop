@@ -1,6 +1,6 @@
 # Loop 课表数据格式（schedule.json）
 
-设备端只读 JSON，不解析 ICS。课表由 AstroBox 插件从本地 `.ics` 转换后推送到快应用沙箱。
+设备端读取 JSON，不解析 ICS。课表由 AstroBox 插件从本地 `.ics` 转换后，通过 CanopusConnect 直接推送至原生模块。
 **固件不含内置课表。**
 
 ## 谁写入、谁读取
@@ -10,20 +10,17 @@
         │
         ▼
 AstroBox 插件 plugins/astrobox-loop-import（按 ICS 来源方言转换，支持 WakeUp / WeekDown / Nexio）
-        │ interconnect
+        │ CanopusConnect（module = loop，二进制分片）
         ▼
-快应用 top.zaona.loopimport
-  internal://files/loop/schedule.json
-        │ 映射为
+Loop 原生模块校验并原子写入
         ▼
-/data/files/top.zaona.loopimport/loop/schedule.json
-（Band 11 常见为 /data/quickapp/files/top.zaona.loopimport/loop/schedule.json）
-        │ Loop 原生只读；先试前者，没有再读后者
+/data/canopus/m.loop/schedule.json
+        │ 下一次界面刷新时加载
         ▼
 loop-device / loop-core
 ```
 
-- 快应用工程：`quickapps/loop-import`
+- 无额外手表快应用；旧快应用工程已移除。旧沙箱文件不自动迁移，请重新推送。
 - 手机插件：`plugins/astrobox-loop-import`（协议见 [SCHEDULE_IMPORT_PROTOCOL.md](SCHEDULE_IMPORT_PROTOCOL.md)）
 - 文件缺失或非法：Loop 显示空课表（「尚未导入课表」），不回退样例
 
@@ -77,4 +74,4 @@ week ∈ [weeks_start, weeks_end] 且 (week - weeks_start) % week_interval == 0
 
 由 `plugins/astrobox-loop-import` 按 ICS 来源方言**独立**转换（WakeUp / WeekDown / Nexio）。
 三源对同一人课表应得到一致的课名、星期、起止分钟、地点（去校区前缀后）与教学周区间。
-只更新快应用沙箱 JSON 时无需重编 Loop。
+重新推送课表无需重编 Loop。完整 JSON 上限 40960 字节；设备验证日期、课程时间、星期及教学周，失败保留原课表。当前 Connect 服务目标为 `.043` / `.155` / `.179`，`.036` / `.139` 不支持导入。

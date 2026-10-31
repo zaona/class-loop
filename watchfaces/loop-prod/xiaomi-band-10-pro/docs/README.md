@@ -1,8 +1,5 @@
-# Loop production installer
+# Band 10 Pro installer
 
-Build targets: xiaomi-band-10-pro-3.101.036, xiaomi-band-10-pro-3.101.043
+Run `python3 scripts/build.py xiaomi-band-10-pro` in WSL. Use the generated `dist/installer/xiaomi-band-10-pro/` directory for `.036` and `.043`.
 
-Pack only main.lua and the .bin files in this directory. Requires the matching resident Canopus Supervisor.
-Opening the watchface installs the signed module in the disabled state; it does not enable or bootstrap the framework.
-Uses /dev/canopus like the earlier Band 10 Pro installers, so any resident Supervisor works. Identity comes from /etc/build.prop (ro.build.customer_version), with getprop as fallback; the installer creates /data/canopus/inbox with mkdir.
-Signatures are verified against the Supervisor trust key during packaging; no private key is packaged.
+This historical asset directory is no longer an installer output. CMI2 requires the current matching ABI 2 Supervisor; old signed CMI1 payloads are obsolete.

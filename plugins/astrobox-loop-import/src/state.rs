@@ -75,9 +75,5 @@ pub fn snapshot() -> UiState {
 
 pub fn empty_to_none(value: &str) -> Option<&str> {
     let value = value.trim();
-    if value.is_empty() {
-        None
-    } else {
-        Some(value)
-    }
+    if value.is_empty() { None } else { Some(value) }
 }

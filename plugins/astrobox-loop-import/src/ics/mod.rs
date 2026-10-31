@@ -140,8 +140,7 @@ mod tests {
     fn nexio_uses_description_week() {
         let ics = "BEGIN:VCALENDAR\nPRODID:-//Nexio Schedule//Course Schedule//CN\nBEGIN:VEVENT\nSUMMARY:形势与政策\nLOCATION:39-A105 李彤\nDESCRIPTION:第7周\nDTSTART:20261015T155000\nDTEND:20261015T172000\nRRULE:FREQ=WEEKLY;COUNT=1\nEND:VEVENT\nBEGIN:VEVENT\nSUMMARY:形势与政策\nLOCATION:39-A105 李彤\nDESCRIPTION:第15周\nDTSTART:20261210T155000\nDTEND:20261210T172000\nRRULE:FREQ=WEEKLY;COUNT=1\nEND:VEVENT\nEND:VCALENDAR\n";
         let value =
-            convert_ics_text(ics, IcsSource::Nexio, Some("2026秋"), Some("2026-08-31"), 8)
-                .unwrap();
+            convert_ics_text(ics, IcsSource::Nexio, Some("2026秋"), Some("2026-08-31"), 8).unwrap();
         let courses = value["courses"].as_array().unwrap();
         assert_eq!(courses.len(), 1);
         assert_eq!(courses[0]["weeks_start"], 7);

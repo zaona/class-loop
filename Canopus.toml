@@ -1,14 +1,40 @@
-# Loop 模块清单：身份、能力与原生应用声明。
-# 与固件产物一一对应；改 module.id / native_app.app_id 时必须同步 module.rs 与收据签名。
+# Loop：绑定精确固件的 ABI 2 原生应用。
 schema = 1
 
 [module]
-id = "org.canopus.loop"
-version = "0.1.0"
+id = "loop"
+version = "0.3.5"
+version_code = 8
+kind = "target"
 language = "rust"
 # 激活后驻留：注销应用需要重启（与 Lyra 相同策略）。
 lifecycle = "resident-after-activation"
-canopus_abi = "1"
+canopus_abi = "2"
+description = "Loop 腕上课表"
+
+[build]
+sources = ["crates/loop-device/Cargo.toml"]
+# Data words that resemble flash pointers; no firmware addresses are exempted.
+allowed_constants = [
+  # Launcher ARGB8888 pixels with alpha 0x0c (aligned to 4 bytes).
+  "0x0c002a40", "0x0c152a55", "0x0c2a4040",
+  # Launcher alpha-0x1c pixel at icon offsets 0x7aa0 / 0xc9e8 / 0xca30.
+  "0x1c00526d",
+  # Rust 1.99 core::unicode::unicode_data OFFSETS tables (cn_planes_0_3 / grapheme_extend).
+  "0x0c030303", "0x0c040c01", "0x0c022e02", "0x0c016501",
+  "0x0c084608", "0x0c020201", "0x0c010402", "0x0c06da03",
+  "0x0c0f0104", "0x0c022e30",
+  # Same byte tables after Connect changes their packing: cn_planes_0_3
+  # (.rodata+0xe618, len 0x5b5) and grapheme_extend (+0xebcd, len 0x2ff).
+  "0x0c03020a", "0x0c020103", "0x0c07266a", "0x0c04071a",
+  "0x0c147a46", "0x0c070201", "0x0c092603", "0x0c010101",
+  "0x0c59011a", # cn_planes_0_3, .043 .rodata+0xe828
+  # Packed byte lookup (01 02 ... 0a 00 0c ...) and numeric table words.
+  "0x0c000a09", "0x0c000000",
+  # UI rewrite .036 .rodata+0xe774: padding 00 + RangeInclusive<u8> bytes 00 01 0c.
+  # Relocation at .text+0x70d0 points to +0xe775 from parse_ymd's month 1..=12 check.
+  "0x0c010000",
+]
 
 [targets]
 include = [
@@ -16,20 +42,5 @@ include = [
   "xiaomi-band-10-pro-3.101.043",
   "xiaomi-band-11-4.100.139",
   "xiaomi-band-11-4.100.155",
+  "xiaomi-band-11-4.100.179",
 ]
-
-[capabilities]
-required = [
-  "identity-guard",
-  "native-app.register",
-  "launcher.entry",
-  "ui.dispatch",
-  "nuttx.fs",
-]
-
-[native_app]
-enabled = true
-app_id = "org.canopus.loop"
-name = "Loop"
-entry = "canopus_module_descriptor"
-role = "standalone"

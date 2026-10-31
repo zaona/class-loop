@@ -132,18 +132,19 @@ pub fn compress_weeks(weeks: &[i32]) -> Vec<(i32, i32, u32)> {
     if weeks.is_empty() {
         return Vec::new();
     }
-    let weeks: Vec<i32> = weeks.iter().copied().collect::<BTreeSet<_>>().into_iter().collect();
+    let weeks: Vec<i32> = weeks
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
     if weeks.len() == 1 {
         return vec![(weeks[0], weeks[0], 1)];
     }
 
     // 若整体等间隔且间隔>1，压成一条。
     let gap = weeks[1] - weeks[0];
-    if gap > 1
-        && weeks
-            .windows(2)
-            .all(|w| w[1] - w[0] == gap)
-    {
+    if gap > 1 && weeks.windows(2).all(|w| w[1] - w[0] == gap) {
         return vec![(weeks[0], *weeks.last().unwrap(), gap as u32)];
     }
 

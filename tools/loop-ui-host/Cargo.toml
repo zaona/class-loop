@@ -1,0 +1,15 @@
+[package]
+name = "loop-ui-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Executes Loop native pages and stock prefab interactions"
+
+[features]
+target-xiaomi-band-11-4-100-139 = ["target-xiaomi-band-11-4-100-155"]
+target-xiaomi-band-11-4-100-155 = []
+target-xiaomi-band-11-4-100-179 = ["target-xiaomi-band-11-4-100-155"]
+
+[dev-dependencies]
+loop-core = { path = "../../crates/loop-core" }

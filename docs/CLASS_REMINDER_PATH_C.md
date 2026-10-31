@@ -1,5 +1,7 @@
 # 上课提醒 Path C：RE 与落地计划
 
+> 历史研究记录（2026-09，迁移前架构）。保留原调查结论供参考；本文中的冻结方案、接口状态和探针步骤不代表当前 ABI 2 / Connect 版本的实现。当前 Loop 未启用上课提醒，开发入口见 [WSL-DEVELOPMENT.md](WSL-DEVELOPMENT.md)。
+
 > 状态：**只做 C**（熄屏可达 + 震动/全屏 + 不黑屏卡死）。  
 > 前置失败记录：[`CLASS_REMINDER_DEVLOG.md`](CLASS_REMINDER_DEVLOG.md)。  
 > Target：`xiaomi-band-10-pro-3.101.036`（SHA `662d67f5…8ec3c81`）。

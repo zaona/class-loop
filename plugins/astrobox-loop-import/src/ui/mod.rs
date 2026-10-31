@@ -6,7 +6,7 @@ use crate::astrobox::psys_host_v4::{
     dialog::{self, FilterConfig, PickConfig},
     ui,
 };
-use crate::{ics::IcsSource, interconnect, publish, state};
+use crate::{connect, ics::IcsSource, publish, state};
 
 const EVENT_PICK: &str = "action:file.schedule";
 const EVENT_REFRESH: &str = "action:devices.refresh";
@@ -75,7 +75,7 @@ pub async fn on_event(event_id: &str, payload: &str) {
         }
         EVENT_PICK => pick_file().await,
         EVENT_REFRESH => {
-            interconnect::refresh_devices().await;
+            connect::refresh_devices().await;
             state::with_state(|state| state.status = "已刷新连接设备。".to_string());
             rerender();
         }
@@ -223,9 +223,8 @@ async fn pick_file() {
             state::with_state(|state| {
                 clear_term_editing(state);
                 state.prepared = Some(prepared);
-                state.status = format!(
-                    "已按 {source_label} 解析，共 {course_count} 门课。可推送到手表。"
-                );
+                state.status =
+                    format!("已按 {source_label} 解析，共 {course_count} 门课。可推送到手表。");
             });
             sync_term_fields_from_prepared();
         }
@@ -487,15 +486,13 @@ fn build_settings_tab() -> ui::Element {
         .width_full()
         .gap(8)
         .child(build_section_title("更多内容"))
-        .child(
-            build_settings_card(
-                icons::help_svg(),
-                "使用说明",
-                Some("操作步骤与导入注意事项"),
-                Some(build_more_link_icon()),
-                Some(EVENT_OPEN_HELP),
-            ),
-        )
+        .child(build_settings_card(
+            icons::help_svg(),
+            "使用说明",
+            Some("操作步骤与导入注意事项"),
+            Some(build_more_link_icon()),
+            Some(EVENT_OPEN_HELP),
+        ))
         .child(
             build_settings_card(
                 icons::mail_svg(),
@@ -718,11 +715,16 @@ fn build_device_card(snapshot: &state::UiState) -> ui::Element {
         .size(14);
 
     if snapshot.devices.is_empty() {
-        select = select.child(ui::Element::new(ui::ElementType::Option, Some("未连接设备")));
+        select = select.child(ui::Element::new(
+            ui::ElementType::Option,
+            Some("未连接设备"),
+        ));
     } else {
         for device in &snapshot.devices {
-            select =
-                select.child(ui::Element::new(ui::ElementType::Option, Some(&device.name)));
+            select = select.child(ui::Element::new(
+                ui::ElementType::Option,
+                Some(&device.name),
+            ));
         }
     }
 
@@ -745,7 +747,7 @@ fn build_device_card(snapshot: &state::UiState) -> ui::Element {
     build_settings_card(
         icons::device_svg(),
         "目标设备",
-        Some("请保持手表 Loop Import 前台打开"),
+        Some("手表 Loop 需已启用，固件需支持 CanopusConnect"),
         Some(
             ui::Element::new(ui::ElementType::Div, None)
                 .flex()

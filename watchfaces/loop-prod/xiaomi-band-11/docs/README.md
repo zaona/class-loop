@@ -1,10 +1,5 @@
-# Loop production installer
+# Band 11 installer
 
-Build targets: xiaomi-band-11-4.100.139, xiaomi-band-11-4.100.155
+Run `python3 scripts/build.py xiaomi-band-11` in WSL. Use the generated `dist/installer/xiaomi-band-11/` directory for `.139` and `.155`.
 
-Pack only main.lua and the .bin files in this directory. Requires the matching resident Canopus Supervisor.
-Opening the watchface installs the signed module in the disabled state; it does not enable or bootstrap the framework.
-Use an updated Supervisor with /canopus/install. External Lua uses ordinary IO only; no execute recovery or debug access is embedded.
-The framework prepares /data/canopus/inbox before external installation.
-Band 11 adapters pass compiled ARM/firmware ABI tests; physical radio/audio/display remain NOT_PROBED.
-Signatures are verified against the Supervisor trust key during packaging; no private key is packaged.
+This historical asset directory is no longer an installer output. Install the matching current ABI 2 Supervisor first. See `docs/BUILD.md` for the upstream `.155` Supervisor size limitation and the remaining device checks.

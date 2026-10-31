@@ -1,19 +1,25 @@
-//! Loop 目标集成：时钟、课表加载、路由与 LVGL 刷新。
+//! Loop 目标集成：时钟、课表加载、路由与 Canopus 系统组件。
 //!
-//! LVGL 只在 page owner 线程触碰；刷新定时器亦由该页自己创建。
+//! 原生页面生命周期、系统列表组件与真实时钟。
 
 use alloc::{format, string::String};
 use core::sync::atomic::Ordering;
 
-use loop_core::{Action, Effect, Route, ScheduleFile, ui};
+use loop_core::{
+    Action, Effect, Route, ScheduleFile,
+    view::{self, PageView},
+};
 
-use runtime::{initialized, runtime, try_with_core, with_core};
+use runtime::{APP_FAILED, initialized, runtime, try_with_core, with_core};
 
 pub mod clock;
+pub mod connect;
+pub mod diagnostics;
+pub mod firmware;
 pub mod native_app;
 pub mod runtime;
 pub mod storage;
-pub mod ui_backend;
+pub mod ui;
 
 pub fn prepare() {
     runtime::prepare();
@@ -33,12 +39,24 @@ pub fn activate() -> i32 {
         core.app
             .update(Action::Boot(loop_core::ScheduleFile::default()))
     });
-    execute_effects(effects);
+    let _ = execute_effects(effects);
+    let error = connect::start();
+    runtime().connect_error.store(error, Ordering::Release);
     0
 }
 
 pub fn query_status() -> [u32; 6] {
     let r = runtime();
+    if !initialized() {
+        return [
+            APP_FAILED,
+            0,
+            r.last_error.load(Ordering::Acquire) as u32,
+            0,
+            0,
+            0,
+        ];
+    }
     let core = try_with_core(|core| {
         [
             core.app.generation,
@@ -51,7 +69,7 @@ pub fn query_status() -> [u32; 6] {
         r.app_state.load(Ordering::Acquire),
         r.app_error.load(Ordering::Acquire) as u32,
         r.last_error.load(Ordering::Acquire) as u32,
-        r.active_page.load(Ordering::Acquire),
+        core[1],
         core[0],
         core[1],
     ]
@@ -60,7 +78,9 @@ pub fn query_status() -> [u32; 6] {
 fn apply_disk_schedule(core: &mut runtime::Core) {
     match storage::load_schedule() {
         Ok(Some(file)) => {
-            let _ = core.app.update(Action::Reload(file));
+            if core.app.schedule != file {
+                let _ = core.app.update(Action::Reload(file));
+            }
         }
         Ok(None) => {
             let empty =
@@ -77,131 +97,86 @@ fn refresh_clock_and_schedule(core: &mut runtime::Core) {
     if let Some(hint) = clock::read_clock() {
         let _ = core.app.update(Action::Tick(hint));
     }
-    // 低频：每 50 次刷新（约 5s）尝试重读快应用 schedule.json。
+    // 导入完成后的下一次 UI tick 重读私有课表；低频重读保留给手动管理。
     let tick = runtime().timer_ticks.fetch_add(1, Ordering::AcqRel) + 1;
-    if tick == 1 || tick % 50 == 0 {
+    if runtime().schedule_dirty.swap(false, Ordering::AcqRel) || tick == 1 || tick % 50 == 0 {
         apply_disk_schedule(core);
     }
-}
-
-pub fn rebuild(page_index: usize) -> i32 {
-    if page_is_current(page_index) != 0 {
-        return 0;
-    }
-    let snapshot = with_core(|core| {
-        refresh_clock_and_schedule(core);
-        loop_core::ui::render(&core.app)
-    });
-    match snapshot {
-        Ok(snapshot) => ui_backend::apply_snapshot(page_index, &snapshot),
-        Err(_) => -1,
-    }
-}
-
-pub fn rebuild_if_changed(page_index: usize, rendered_generation: u32) -> i32 {
-    if page_is_current(page_index) != 0 {
-        return 0;
-    }
-    let snapshot = match try_with_core(|core| {
-        refresh_clock_and_schedule(core);
-        if core.app.generation == rendered_generation {
-            None
-        } else {
-            Some(loop_core::ui::render(&core.app))
+    if core.app.route == Route::Data && runtime().connect_error.load(Ordering::Acquire) != 0 {
+        let message = String::from("当前固件或服务不支持 Connect 导入");
+        if core.app.data_status != message {
+            let _ = core.app.update(Action::SetDataStatus(message));
         }
-    }) {
-        Some(snapshot) => snapshot,
-        None => return 0,
-    };
-    match snapshot {
-        None => 0,
-        Some(Ok(snapshot)) => ui_backend::apply_snapshot(page_index, &snapshot),
-        Some(Err(_)) => -1,
     }
 }
 
-fn page_is_current(page_index: usize) -> i32 {
-    let current = with_core(|core| core.app.route.page_index());
-    if current == page_index { 0 } else { 1 }
+pub fn ui_maintenance_tick() {
+    let _ = try_with_core(refresh_clock_and_schedule);
 }
-
+pub fn view_revision(index: usize) -> Option<u32> {
+    try_with_core(|core| (core.app.route.page_index() == index).then_some(core.app.generation))
+        .flatten()
+}
+pub fn page_view(index: usize) -> Option<PageView> {
+    try_with_core(|core| (core.app.route.page_index() == index).then(|| view::present(&core.app)))
+        .flatten()
+}
 pub fn sync_resumed_page(page_index: usize) -> i32 {
     let Some(route) = Route::from_page_index(page_index) else {
         return -1;
     };
     with_core(|core| {
-        if core.app.route != route {
-            if core.app.history.last().copied() == Some(route) {
-                core.app.history.pop();
-            } else if let Some(position) = core.app.history.iter().rposition(|item| *item == route)
-            {
-                core.app.history.truncate(position);
-            } else {
-                core.app.history.clear();
-            }
-            core.app.route = route;
-            core.app.bump();
-        }
+        core.app.resume_route(route);
     });
     0
 }
 
 pub fn handle_back(page_index: usize) {
-    let should_finish = with_core(|core| {
+    let previous = with_core(|core| {
         if core.app.route.page_index() != page_index {
-            return false;
-        }
-        let _ = core.app.update(Action::Back);
-        true
-    });
-    if should_finish {
-        ui_backend::back(page_index);
-    }
-}
-
-pub fn handle_ui_event(page_index: usize, generation: u32, _key: u32, event_id: u32) {
-    if event_id == ui::EVENT_BACK {
-        let valid = with_core(|core| core.app.generation == generation);
-        if valid {
-            handle_back(page_index);
-        }
-        return;
-    }
-    let effects = with_core(|core| {
-        if core.app.generation != generation {
             return None;
         }
-        action_for_event(event_id).map(|action| core.app.update(action))
+        let previous = core.app.navigation_state();
+        let _ = core.app.update(Action::Back);
+        Some(previous)
     });
-    let Some(effects) = effects else {
-        return;
-    };
-    execute_effects(effects);
-    let _ = rebuild(page_index);
-}
-
-fn action_for_event(event_id: u32) -> Option<Action> {
-    match event_id {
-        ui::EVENT_TODAY => Some(Action::Open(Route::Today)),
-        ui::EVENT_WEEK => Some(Action::Open(Route::Week)),
-        ui::EVENT_DATA => Some(Action::Open(Route::Data)),
-        ui::EVENT_REFRESH => Some(Action::RefreshSchedule),
-        ui::EVENT_CLEAR => Some(Action::ClearSchedule),
-        event if (ui::EVENT_DAY_BASE + 1..=ui::EVENT_DAY_BASE + 7).contains(&event) => {
-            Some(Action::SelectDay((event - ui::EVENT_DAY_BASE) as u8))
+    if let Some(previous) = previous {
+        let rc = ui::back(page_index);
+        if rc < 0 {
+            restore_navigation(page_index, previous, rc);
         }
-        event if event >= ui::EVENT_COURSE_BASE => {
-            Some(Action::SelectCourse(event - ui::EVENT_COURSE_BASE))
-        }
-        _ => None,
     }
 }
 
-fn execute_effects(effects: alloc::vec::Vec<Effect>) {
+pub fn handle_action(page_index: usize, generation: u32, action: Action) {
+    let effects = with_core(|core| {
+        if core.app.generation != generation || core.app.route.page_index() != page_index {
+            return None;
+        }
+        Some((core.app.navigation_state(), core.app.update(action)))
+    });
+    let Some((previous, effects)) = effects else {
+        return;
+    };
+    if let Err(rc) = execute_effects(effects) {
+        restore_navigation(page_index, previous, rc);
+    }
+}
+
+fn restore_navigation(index: usize, previous: loop_core::app::NavigationState, error: i32) {
+    with_core(|core| core.app.restore_navigation(previous));
+    runtime().last_error.store(error, Ordering::Release);
+    let _ = ui::page_resume(index);
+}
+
+fn execute_effects(effects: alloc::vec::Vec<Effect>) -> Result<(), i32> {
     for effect in effects {
         match effect {
             Effect::Navigate(route) => {
-                ui_backend::navigate(route.page_index());
+                let rc = ui::navigate(route.page_index());
+                if rc < 0 {
+                    return Err(rc);
+                }
             }
             Effect::ReloadFromDisk => {
                 with_core(|core| match storage::load_schedule() {
@@ -225,23 +200,27 @@ fn execute_effects(effects: alloc::vec::Vec<Effect>) {
                     }
                 });
             }
-            Effect::ClearStoredSchedule => match storage::clear_schedule() {
-                Ok(()) => {
-                    with_core(|core| {
-                        let _ = core.app.update(Action::Reload(ScheduleFile::default()));
-                        let _ = core
-                            .app
-                            .update(Action::SetDataStatus(String::from("已清空本地课表")));
-                    });
+            Effect::ClearStoredSchedule => {
+                connect::abort();
+                match storage::clear_schedule() {
+                    Ok(()) => {
+                        with_core(|core| {
+                            let _ = core.app.update(Action::Reload(ScheduleFile::default()));
+                            let _ = core
+                                .app
+                                .update(Action::SetDataStatus(String::from("已清空本地课表")));
+                        });
+                    }
+                    Err(_) => {
+                        with_core(|core| {
+                            let _ = core
+                                .app
+                                .update(Action::SetDataStatus(String::from("清空失败")));
+                        });
+                    }
                 }
-                Err(_) => {
-                    with_core(|core| {
-                        let _ = core
-                            .app
-                            .update(Action::SetDataStatus(String::from("清空失败")));
-                    });
-                }
-            },
+            }
         }
     }
+    Ok(())
 }

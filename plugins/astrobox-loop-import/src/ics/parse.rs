@@ -175,7 +175,9 @@ pub fn parse_dt(
         .get("VALUE")
         .map(|v| v.eq_ignore_ascii_case("DATE"))
         .unwrap_or(false)
-        || (!value.contains('T') && value.len() >= 8 && value[..8].bytes().all(|b| b.is_ascii_digit()));
+        || (!value.contains('T')
+            && value.len() >= 8
+            && value[..8].bytes().all(|b| b.is_ascii_digit()));
     if is_date {
         let y: i32 = value[0..4].parse().map_err(|_| "bad DATE")?;
         let m: u32 = value[4..6].parse().map_err(|_| "bad DATE")?;

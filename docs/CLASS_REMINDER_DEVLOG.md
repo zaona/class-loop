@@ -1,5 +1,7 @@
 # 上课提醒功能：开发过程记录
 
+> 历史研究记录（2026-09，迁移前架构）。本文接口、路径和限制对应当时基线；当前 Loop 未启用上课提醒，以 [README](../README.md) 和 [WSL-DEVELOPMENT.md](WSL-DEVELOPMENT.md) 为准。
+
 > 状态：**已回退代码**（2026-09-06）。本文仅作备忘。  
 > **后续决策（2026-09-10）：只做 Path C**，见 [`CLASS_REMINDER_PATH_C.md`](CLASS_REMINDER_PATH_C.md)；Canopus 候选证据 `EVID-REMINDER-001/002`。  
 > 相关对话：Cursor agent transcript `574171fc-826a-4d4f-86e4-c1cbc43b49e4`。

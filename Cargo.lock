@@ -28,10 +28,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "canopus-ui-core"
-version = "0.1.0"
-
-[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -39,21 +35,31 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "loop-core"
-version = "0.1.0"
+version = "0.3.5"
 dependencies = [
- "canopus-ui-core",
  "serde",
  "serde_json",
 ]
 
 [[package]]
 name = "loop-device"
-version = "0.1.0"
+version = "0.3.5"
 dependencies = [
  "canopus-abi",
  "canopus-runtime",
  "canopus-target-private",
- "canopus-ui-core",
+ "loop-core",
+ "loop-protocol",
+]
+
+[[package]]
+name = "loop-protocol"
+version = "0.3.5"
+
+[[package]]
+name = "loop-ui-host"
+version = "0.3.5"
+dependencies = [
  "loop-core",
 ]
 

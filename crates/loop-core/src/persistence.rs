@@ -1,6 +1,6 @@
 //! 课表 JSON 加载。
 //!
-//! 只读快应用 `top.zaona.loopimport` 沙箱中的 schedule.json；
+//! CanopusConnect 发布至模块私有目录的 schedule.json；
 //! 文件缺失时由调用方保持空课表，不内置样例。
 
 use alloc::vec::Vec;
@@ -8,14 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::{SCHEDULE_VERSION, ScheduleFile};
 
-/// 快应用 `internal://files/loop` 在 10 Pro 上的物理目录。
-pub const IMPORT_ROOT: &str = "/data/files/top.zaona.loopimport/loop";
-
-/// Band 11 等机型把同一沙箱映射到 `/data/quickapp/files/...`。
-pub const LEGACY_IMPORT_ROOT: &str = "/data/quickapp/files/top.zaona.loopimport/loop";
-
-/// 原生模块读取的课表清单路径（逻辑路径；设备端会回退到 LEGACY_IMPORT_ROOT）。
-pub const SCHEDULE_PATH: &str = "/data/files/top.zaona.loopimport/loop/schedule.json";
+/// 相对于 Supervisor 分配的模块私有目录。
+pub const SCHEDULE_PATH: &str = "schedule.json";
 
 pub trait Store {
     type Error;
@@ -57,7 +51,38 @@ fn map_parse_error<E>(error: PersistenceError<()>) -> PersistenceError<E> {
     }
 }
 
-/// 读取快应用发布的 schedule.json。
+/// Accept only schedulable dates, times and week ranges from the importer.
+pub fn valid_import(file: &ScheduleFile) -> bool {
+    let Some((year, month, day)) = crate::schedule::parse_ymd(&file.term.start_date) else {
+        return false;
+    };
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days = match month {
+        2 => {
+            if leap {
+                29
+            } else {
+                28
+            }
+        }
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    !file.term.name.trim().is_empty()
+        && day <= days
+        && file.courses.iter().all(|c| {
+            c.id != 0
+                && !c.name.trim().is_empty()
+                && (1..=7).contains(&c.weekday)
+                && c.start_min < c.end_min
+                && c.end_min <= 1440
+                && c.weeks_start > 0
+                && c.weeks_start <= c.weeks_end
+                && c.week_interval > 0
+        })
+}
+
+/// 读取模块私有目录的 schedule.json。
 ///
 /// `Ok(None)` 表示文件不存在；非法内容返回 `Err`。
 pub fn load_schedule<S: Store>(
