@@ -1,5 +1,7 @@
 # AstroBox Loop Import
 
+仓库根目录的 `index.txt` 是插件市场发布定位文件，指向本插件的 `plugins/astrobox-loop-import/dist`，必须保留。
+
 AstroBox NG API Level 4 插件（WASI Preview 3 运行时）：选择 ICS 导出软件来源（支持 WakeUp / WeekDown / Nexio），
 导入本地 `.ics` 并在插件内转换，经 CanopusConnect 直接推送到原生 Loop 模块。
 

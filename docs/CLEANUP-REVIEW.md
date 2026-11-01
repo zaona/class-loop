@@ -15,7 +15,6 @@
 | `scripts/build-install-watchface.sh`、`scripts/build-install-watchface-prod.sh` | 绕过 WSL Cargo 初始化和同 checkout CLI 编译；统一使用 `sh scripts/build-wsl.sh [设备族或固件]`。 |
 | `scripts/verify-device.sh` | 当前构建已执行官方完整 verifier。 |
 | `targets/*.env`（四份） | 新流程无引用；目标清单来自 Canopus.toml，编译参数来自 Cargo/SDK。 |
-| `index.txt` | 仅一行插件产物目录，无代码或构建引用。 |
 | `watchfaces/loop/appicon_loop.bin` | 与设备 crate 内图标逐字节一致，SHA-256 为 `03bffccb1cfef8186c3cd1dede1588f304ac3d395aa19e56e0993bee05f4ddf4`。 |
 
 .gitignore 将旧 watchfaces/ 统一作为遗留产物目录忽略，移除过期 main.lua 例外。历史说明仍被跟踪；README、BUILD、WSL 流程和 Lyra 对照更新，ICS 转换明确由手机插件负责。
@@ -24,7 +23,7 @@
 
 ## 保留范围
 
-保留 crates/loop-device/assets/ 的 PNG、BIN 和编码说明，业务源码、手机插件及 vendored WIT、测试输入、当前构建脚本。build/ 的迁移、设备故障、审查原始失败复现和修复日志及 Cargo 缓存继续保留。设备日志和旧版迁移/UI 文档属于历史证据，上课提醒文档仍为历史研究。
+保留 crates/loop-device/assets/ 的 PNG、BIN 和编码说明，业务源码、手机插件及 vendored WIT、测试输入、当前构建脚本。根目录 `index.txt` 是插件市场发布定位文件，内容为 `plugins/astrobox-loop-import/dist`；此前误删，现已按原始字节恢复，不属于无用文件。build/ 的迁移、设备故障、审查原始失败复现和修复日志及 Cargo 缓存继续保留。设备日志和旧版迁移/UI 文档属于历史证据，上课提醒文档仍为历史研究。
 
 ## 安装产物整理
 
