@@ -136,7 +136,7 @@ pub fn present(app: &LoopApp) -> PageView {
         }
         Route::Week => {
             page.title = "本周".into();
-            page.summary = format!("{}\n选择一天查看", week_label(app));
+            page.summary = "选择一天查看".into();
             for day in 1..=7 {
                 let count = app.day_courses(day).len();
                 let detail = if count == 0 {
@@ -257,7 +257,7 @@ mod tests {
         app.schedule.courses[59].id = u32::MAX;
         app.update(Action::Open(Route::Week));
         let page = present(&app);
-        assert_eq!(page.summary, "第1周\n选择一天查看");
+        assert_eq!(page.summary, "选择一天查看");
         assert_eq!(page.cards.len(), 7);
         assert_eq!(page.cards[0].detail, "60 节");
         app.update(page.cards[0].target.unwrap().action());

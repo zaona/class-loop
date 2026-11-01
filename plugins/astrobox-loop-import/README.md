@@ -5,7 +5,7 @@
 AstroBox NG API Level 4 插件（WASI Preview 3 运行时）：选择 ICS 导出软件来源（支持 WakeUp / WeekDown / Nexio），
 导入本地 `.ics` 并在插件内转换，经 CanopusConnect 直接推送到原生 Loop 模块。
 
-协议见仓库 `docs/SCHEDULE_IMPORT_PROTOCOL.md`，共享实现在 `crates/loop-protocol`。启用手表 Loop 后即可导入，无需额外快应用。当前 Connect 服务目标为 `.043` / `.155` / `.179`；`.036` / `.139` 不提供此服务。
+协议见仓库 `docs/SCHEDULE_IMPORT_PROTOCOL.md`，共享实现在 `crates/loop-protocol`。启用手表 Loop 后即可导入，无需额外快应用。当前支持的固件为 `.043` / `.155` / `.179`。
 
 ## 构建
 

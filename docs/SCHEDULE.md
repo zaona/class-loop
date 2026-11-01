@@ -74,4 +74,4 @@ week ∈ [weeks_start, weeks_end] 且 (week - weeks_start) % week_interval == 0
 
 由 `plugins/astrobox-loop-import` 按 ICS 来源方言**独立**转换（WakeUp / WeekDown / Nexio）。
 三源对同一人课表应得到一致的课名、星期、起止分钟、地点（去校区前缀后）与教学周区间。
-重新推送课表无需重编 Loop。完整 JSON 上限 40960 字节；设备验证日期、课程时间、星期及教学周，失败保留原课表。当前 Connect 服务目标为 `.043` / `.155` / `.179`，`.036` / `.139` 不支持导入。
+重新推送课表无需重编 Loop。完整 JSON 上限 40960 字节；设备验证日期、课程时间、星期及教学周，失败保留原课表。当前支持的固件为 `.043` / `.155` / `.179`。

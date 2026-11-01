@@ -6,7 +6,7 @@ Loop 0.3.0 起，AstroBox 插件通过 CanopusConnect 的 `loop` 模块通道直
 
 本地 ICS → 手机插件按 WakeUp / WeekDown / Nexio 方言转换 → LPC1 二进制分片 → 原生 Loop → 私有 `schedule.json`。插件需要 AstroBox NG API Level 4 的 Connect 支持；Loop 必须已激活。
 
-当前五个目标中 `.043` / `.155` / `.179` 提供 Connect，`.036` / `.139` 不提供。模块在无 Connect 服务时仍可离线启动，并在数据页提示导入不可用。`.155` Supervisor 的构建体积限制另见 [迁移记录](MIGRATION-ABI2.md)。
+当前仅支持提供 CanopusConnect 的 `.043` / `.155` / `.179` 三个固件目标。
 
 - 每帧最大 480 字节：16 字节头 + 最多 464 字节 payload。
 - 完整课表为 UTF-8 JSON，1～40960 字节；一次仅接收一个事务。

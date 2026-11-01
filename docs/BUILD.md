@@ -2,7 +2,7 @@
 
 本文是构建速查。完整环境搭建与日常开发过程见 [WSL-DEVELOPMENT.md](WSL-DEVELOPMENT.md)，参考应用结构差异见 [LYRA-NG-COMPARISON.md](LYRA-NG-COMPARISON.md)。
 
-当前使用 Canopus `ds-newdevice-supports@7995f192`，Loop 为 0.3.5 / versionCode 8；v1 文案、按钮和原生页面恢复见 [V1-PARITY-034.md](V1-PARITY-034.md)，保留真实日期修复，不需要新管理器。新分支上游检查限制见 [DS-NEWDEVICE-SUPPORTS.md](DS-NEWDEVICE-SUPPORTS.md)。
+当前使用 Canopus `ds-newdevice-supports@c5573a69`，Loop 为 0.3.5 / versionCode 8，仅打包 `.043` / `.155` / `.179` 三个目标。v1 文案、按钮和原生页面恢复见 [V1-PARITY-034.md](V1-PARITY-034.md)，此前分支适配记录见 [DS-NEWDEVICE-SUPPORTS.md](DS-NEWDEVICE-SUPPORTS.md)。
 
 0.3.5 的旧点击校验、切页失败恢复和旧文件清理见 [CLEANUP-REVIEW.md](CLEANUP-REVIEW.md)。
 
@@ -31,15 +31,15 @@ canopus doctor
 
 ```sh
 cd /mnt/d/Canopus/class-loop
-sh scripts/build-wsl.sh                                   # 五个目标
-sh scripts/build-wsl.sh xiaomi-band-11                     # .139 + .155 + .179
+sh scripts/build-wsl.sh                                   # .043 + .155 + .179
+sh scripts/build-wsl.sh xiaomi-band-11                     # .155 + .179
 sh scripts/build-wsl.sh xiaomi-band-10-pro-3.101.043         # 单固件
 ```
 
 脚本依次调用官方 `canopus build`、`canopus package --installer`、`canopus package verify`，并对生成的安装器运行 `luac -p`。部分目标使用项目根目录中的临时清单，构建后自动移除。
 
 - `build/<target>/loop.elf`：通过官方 verifier 的 ELF32 ET_REL 模块。
-- `dist/loop-0.3.5.canopus`：包含全部五个目标；部分构建写入 `dist/selected/<版本组合>/`，包名带版本后缀。
+- `dist/loop-0.3.5.canopus`：包含全部三个目标；部分构建写入 `dist/selected/<版本组合>/`，包名带版本后缀。
 - 同名 `.build-info.json`：本次 SDK 分支、完整 commit、tracked dirty 状态、CLI/包/各目标 ELF 的 SHA-256。
 - `dist/installer/<设备族>/`：该次选择的固件对应的 `main.lua`、模块和 CMI2 回执。打包此目录中的 `main.lua` 和 `.bin` 资源作为安装表盘。
 
@@ -69,7 +69,7 @@ python3 scripts/build_dist.py --release --package
 新版采用 176 字节 CMI2 回执，无签名或私钥步骤。安装器写入 `.cmi.next` / `.ko.next` inbox 暂存文件，由 Supervisor 验证和安装；升级结果 `REBOOT_REQUIRED(8)` 表示重启后生效。
 
 Loop 通过服务表使用文件、内存、时间和 Launcher，应用 ID 由 Supervisor 分配；五个原生页面通过已有 target SDK 创建系统标题栏、列表和滚动容器，使用固件 push/pop。真实日历时间使用精确 target SDK 的 CLOCK_REALTIME，避免本分支 realtime_ms 返回开机时长。模块保持驻留，注销需要重启。
-图标随 ELF 内嵌，注册前写入模块私有目录。课表由 AstroBox 插件通过 CanopusConnect 直接推送，模块校验后原子保存至私有 `schedule.json`。旧导入快应用已移除；旧沙箱课表需重新推送。当前 `.043` / `.155` / `.179` 提供 Connect，`.036` / `.139` 仍可离线启动。
+图标随 ELF 内嵌，注册前写入模块私有目录。课表由 AstroBox 插件通过 CanopusConnect 直接推送，模块校验后原子保存至私有 `schedule.json`。旧导入快应用已移除；旧沙箱课表需重新推送。当前仅打包支持 CanopusConnect 的 `.043` / `.155` / `.179`。
 
 ## 当前验证范围
 

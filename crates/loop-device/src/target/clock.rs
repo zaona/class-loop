@@ -82,7 +82,9 @@ mod tests {
         let page = view::present(&app);
         assert_eq!(page.cards[0].title, "测试课程");
         assert_eq!(page.cards[0].target, Some(view::Target::Course(1)));
-        app.update(Action::Open(Route::Week));
+        app.update(Action::Open(Route::Home));
         assert!(view::present(&app).summary.contains("第9周"));
+        app.update(Action::Open(Route::Week));
+        assert_eq!(view::present(&app).summary, "选择一天查看");
     }
 }

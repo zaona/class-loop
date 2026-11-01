@@ -2,6 +2,8 @@
 
 记录日期：2026-10-31，更新至 2026-11-01。适用于当前 `D:\Canopus` 工作区。本文件记录环境搭建、日常修改、构建验证和排错；[BUILD.md](BUILD.md) 是日常构建速查，[MIGRATION-ABI2.md](MIGRATION-ABI2.md) 保存本次迁移结果。
 
+2026-11-01 按当前支持范围将 `Canopus.toml` 缩为 `.043` / `.155` / `.179`，不再打包无 CanopusConnect 的目标。WSL 使用 `ds-newdevice-supports@c5573a69`，运行 `RUSTFLAGS=-Dwarnings cargo test --workspace`（14 项通过）及 `sh scripts/build-wsl.sh`；三目标 ELF、完整包和安装器 Lua 校验通过，并清除安装器内旧目标载荷。产物仍为 `dist/loop-0.3.5.canopus`（697856 字节），来源及 SHA-256 见同名 build-info，日志为 `build/connect-targets-035/`。后文五目标构建结果保留为历史。
+
 此前诊断轮已切换 Canopus `ds-newdevice-supports@7995f192`，生成 Loop 0.3.2 / versionCode 5 启动诊断版。新分支 WSL 命令和上游检查限制见 [DS-NEWDEVICE-SUPPORTS.md](DS-NEWDEVICE-SUPPORTS.md)；2026-11-01 的设备日志对比、诊断实现、验证命令和包哈希见 [DEVICE-CRASH-29598-2.md](DEVICE-CRASH-29598-2.md)。`build-wsl.sh` 默认先编译同一 checkout 的 CLI，再构建模块，并生成 `.build-info.json`。
 
 2026-11-01 第三份真机日志已通过 WSL 解压、解析并与上一份逐字节对比，确认 0.3.2 首页创建成功且没有新增同类 BusFault；512 条诊断记录因限额停止。此轮没有改运行时代码或重建，详细证据与结论边界见 [DEVICE-CRASH-29598-3.md](DEVICE-CRASH-29598-3.md)。

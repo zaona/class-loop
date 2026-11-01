@@ -562,7 +562,7 @@ fn every_v1_button_native_stack_hints_imports_and_lifecycle() {
     tick();
     assert!(host(|h| h.maintenance) > before);
     click_part("本周", Some(0));
-    let summary = find("第1周\n选择一天查看");
+    let summary = find("选择一天查看");
     let first = find("周一");
     host(|h| {
         assert!(
@@ -580,7 +580,7 @@ fn every_v1_button_native_stack_hints_imports_and_lifecycle() {
         }
         pop();
         assert_eq!(app(|a| a.route), Route::Week);
-        find("第1周\n选择一天查看");
+        find("选择一天查看");
     }
     assert!(
         host(|h| h.moves.contains(&(2, 1))),

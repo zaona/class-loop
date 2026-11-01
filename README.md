@@ -16,7 +16,7 @@ D:\Canopus\
 
 `loop-device` 通过相对路径依赖 `../../../Canopus/sdk/rust/...`。
 
-当前框架基线为 `ds-newdevice-supports@7995f192`。分支切换、构建结果及上游检查限制见 [新分支适配记录](docs/DS-NEWDEVICE-SUPPORTS.md)。
+当前构建使用 `ds-newdevice-supports@c5573a69`。此前的分支适配记录见 [新分支适配记录](docs/DS-NEWDEVICE-SUPPORTS.md)。
 
 当前为 0.3.5 / versionCode 8：恢复 v1 文案、按钮与五个原生页面，使用管理器同类系统预制组件和固件切页，不需要更新管理器；保留 0.3.3 的真实日期修复。逐项功能对照和 WSL 验证见 [v1 功能对齐记录](docs/V1-PARITY-034.md)。0.3.2 用户反馈打开不再重启，证据见 [第三轮设备日志](docs/DEVICE-CRASH-29598-3.md)；0.3.5 尚待真机验证。
 
@@ -38,8 +38,8 @@ D:\Canopus\
 - 今日、本周、课程详情、数据管理（手动刷新 / 清空本地课表）
 - 运行时课表：CanopusConnect 直接接收，保存至模块私有目录 `/data/canopus/m.loop/schedule.json`（无文件则空课表）
 - AstroBox 插件：`plugins/astrobox-loop-import`（转换 ICS、分片推送并等待写入确认）
-- Connect 服务目标为 `.043` / `.155` / `.179`；当前框架在 `.036` / `.139` 上不提供此服务，Loop 仍可离线启动
-- 目标：Band 10 Pro `3.101.036` + `3.101.043`，Band 11 `4.100.139` + `4.100.155` + `4.100.179`
+- 仅支持提供 CanopusConnect 的三个固件目标
+- 目标：Band 10 Pro `3.101.043`，Band 11 `4.100.155` + `4.100.179`
 
 不做：腕上编辑、上课提醒、固件内置课表。
 
@@ -73,9 +73,9 @@ sh scripts/build-wsl.sh xiaomi-band-11
 sh scripts/build-wsl.sh xiaomi-band-10-pro-3.101.043
 ```
 
-不指定设备时构建全部五个目标，安装器按 10 Pro（`.036`、`.043`）与 Band 11（`.139`、`.155`、`.179`）分目录。
+不指定设备时构建全部三个目标，安装器按 10 Pro（`.043`）与 Band 11（`.155`、`.179`）分目录。
 产物为 `dist/loop-0.3.5.canopus` 与 `dist/installer/<设备族>/`；部分目标的包名带固件版本后缀。旁边的 `.build-info.json` 记录 SDK 分支/commit、CLI 与包及各 ELF 的 SHA-256。
-当前只保留完整五目标包及对应安装器；`.043` 设备直接使用完整包，不另保留专用包。日常构建使用不带参数的 `sh scripts/build-wsl.sh`。
+当前只保留完整三目标包及对应安装器；`.043` 设备直接使用完整包，不另保留专用包。日常构建使用不带参数的 `sh scripts/build-wsl.sh`。
 安装器由 `canopus package --installer` 生成，使用 CMI2 回执，不再需要签名私钥。需要匹配固件的 ABI 2 Supervisor；已经能运行 0.3.3 的管理器无需为本次更新重装。
 Launcher 图标随模块内嵌，发布应用前写入 `/data/canopus/m.loop/appicon_loop.bin`。
 标题栏、列表行、字体与滚动使用管理器同类系统预制组件，由 Loop 原生页面适配层通过已有精确 target SDK 创建；不绘制自制圆角卡片或返回键、不写私有滚动条字段。课程连续滚动，移除上一版七项分页。文案和点击含义按 v1 恢复。
