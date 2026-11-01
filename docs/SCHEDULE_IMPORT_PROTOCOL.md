@@ -1,6 +1,6 @@
 # Loop CanopusConnect 导入协议（LPC1）
 
-Loop 0.3.0 起，AstroBox 插件通过 CanopusConnect 的 `loop` 模块通道直接与原生模块通信。无需导入快应用；旧版 interconnect JSON 握手不再使用。手机和设备共用 `crates/loop-protocol`，课表 schema 仍为 [version 1](SCHEDULE.md)。
+AstroBox 插件通过 CanopusConnect 的 `canopus_loop` 模块通道直接与原生模块通信。无需导入快应用；旧版 interconnect JSON 握手不再使用。手机和设备共用 `crates/loop-protocol`，课表 schema 仍为 [version 1](SCHEDULE.md)。
 
 ## 数据流与限制
 
@@ -48,6 +48,6 @@ CRC32 使用 IEEE 多项式 `0xedb88320`，初始值与最终异或均为 `0xfff
 
 设备完整收齐后检查长度、CRC32、schema 版本、有效日期、非空学期名，以及课程 ID、名称、星期、时间和教学周区间。先写模块私有 `schedule.json.tmp`，处理 short write，依次 sync、close，然后 rename 覆盖 `schedule.json`。只有全部成功才确认 COMMIT；失败清理临时文件，保留原课表。
 
-实际正式路径为 `/data/canopus/m.loop/schedule.json`，文件服务调用使用相对路径。接收回调不直接操作 LVGL，成功后设置重载标记，由下一次 UI tick 读取新课表。旧快应用沙箱文件不自动迁移，请在手机插件重新导入。
+实际正式路径为 `/data/canopus/m.canopus_loop/schedule.json`，文件服务调用使用相对路径。接收回调不直接操作 LVGL，成功后设置重载标记，由下一次 UI tick 读取新课表。旧快应用沙箱文件不自动迁移，请在手机插件重新导入。
 
 共享协议测试覆盖重复请求、错误事务、越界、乱序、Busy、CRC 损坏、提交失败和取消；设备 mock 文件服务测试覆盖短写及 write/sync/close/rename 失败，并将真实课表通过共享协议送入实际保存函数。主机测试不替代蓝牙传输和断电情况下的真机验证。

@@ -26,7 +26,7 @@ D:\Canopus\
 
 | 项 | 值 | 说明 |
 |---|---|---|
-| module token | `loop` | 收据 / inbox 文件名 |
+| module token | `canopus_loop` | 收据 / inbox 文件名及 CanopusConnect 通道 |
 | display | `Loop` | Launcher 文案 |
 | app_id | Supervisor 动态分配 | 五个模块原生页面与 Launcher |
 | ABI / version | `2` / `0.3.5` (`versionCode = 8`) | v1 功能对齐，沿用当前 ABI 2 Supervisor |
@@ -36,7 +36,7 @@ D:\Canopus\
 
 - 首页：现在 / 下一节 / 今日剩余
 - 今日、本周、课程详情、数据管理（手动刷新 / 清空本地课表）
-- 运行时课表：CanopusConnect 直接接收，保存至模块私有目录 `/data/canopus/m.loop/schedule.json`（无文件则空课表）
+- 运行时课表：CanopusConnect 直接接收，保存至模块私有目录 `/data/canopus/m.canopus_loop/schedule.json`（无文件则空课表）
 - AstroBox 插件：`plugins/astrobox-loop-import`（转换 ICS、分片推送并等待写入确认）
 - 仅支持提供 CanopusConnect 的三个固件目标
 - 目标：Band 10 Pro `3.101.043`，Band 11 `4.100.155` + `4.100.179`
@@ -77,7 +77,7 @@ sh scripts/build-wsl.sh xiaomi-band-10-pro-3.101.043
 产物为 `dist/loop-0.3.5.canopus` 与 `dist/installer/<设备族>/`；部分目标的包名带固件版本后缀。旁边的 `.build-info.json` 记录 SDK 分支/commit、CLI 与包及各 ELF 的 SHA-256。
 当前只保留完整三目标包及对应安装器；`.043` 设备直接使用完整包，不另保留专用包。日常构建使用不带参数的 `sh scripts/build-wsl.sh`。
 安装器由 `canopus package --installer` 生成，使用 CMI2 回执，不再需要签名私钥。需要匹配固件的 ABI 2 Supervisor；已经能运行 0.3.3 的管理器无需为本次更新重装。
-Launcher 图标随模块内嵌，发布应用前写入 `/data/canopus/m.loop/appicon_loop.bin`。
+Launcher 图标随模块内嵌，发布应用前写入 `/data/canopus/m.canopus_loop/appicon_loop.bin`。
 标题栏、列表行、字体与滚动使用管理器同类系统预制组件，由 Loop 原生页面适配层通过已有精确 target SDK 创建；不绘制自制圆角卡片或返回键、不写私有滚动条字段。课程连续滚动，移除上一版七项分页。文案和点击含义按 v1 恢复。
 
 当前页面使用 UI 线程定时器刷新；暂停时删除定时器，恢复时重新创建，销毁时释放页面状态。五个页面走固件 push/pop，与 Lyra 一样使用原生生命周期，沿用 Supervisor 动态 ID。旧自制像素布局与预览脚本未恢复；历史见 [UI 重写记录](docs/UI-REWRITE.md)。

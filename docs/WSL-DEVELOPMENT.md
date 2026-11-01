@@ -1,6 +1,8 @@
 # WSL 开发与构建流程
 
-记录日期：2026-10-31，更新至 2026-11-01。适用于当前 `D:\Canopus` 工作区。本文件记录环境搭建、日常修改、构建验证和排错；[BUILD.md](BUILD.md) 是日常构建速查，[MIGRATION-ABI2.md](MIGRATION-ABI2.md) 保存本次迁移结果。
+记录日期：2026-10-31，更新至 2026-11-02。适用于当前 `D:\Canopus` 工作区。本文件记录环境搭建、日常修改、构建验证和排错；[BUILD.md](BUILD.md) 是日常构建速查，[MIGRATION-ABI2.md](MIGRATION-ABI2.md) 保存本次迁移结果。
+
+2026-11-02 将模块 ID 和 Connect 通道统一为 `canopus_loop`，私有目录为 `/data/canopus/m.canopus_loop/`。ABI 2 版尚未发布，本次调整无需增加用户迁移步骤。WSL 执行 `RUSTFLAGS=-Dwarnings cargo test --workspace`（14 项）、Band 11 UI feature 测试（1 项）、插件 `cargo test --target x86_64-unknown-linux-gnu`（5 项），全部通过；运行插件 `python3 scripts/build_dist.py --release --package` 和模块 `sh scripts/build-wsl.sh`。插件升为 0.3.1；三目标 ELF、包、CMI2 模块身份、安装器 Lua 与载荷一致性校验通过，安装器旧 ID 的六个载荷已移除。产物仍为 `dist/loop-0.3.5.canopus`，日志及核验结果见 `build/module-id-canopus-loop/`。以下路径和模块 ID 的旧记录保留为历史。
 
 2026-11-01 按当前支持范围将 `Canopus.toml` 缩为 `.043` / `.155` / `.179`，不再打包无 CanopusConnect 的目标。WSL 使用 `ds-newdevice-supports@c5573a69`，运行 `RUSTFLAGS=-Dwarnings cargo test --workspace`（14 项通过）及 `sh scripts/build-wsl.sh`；三目标 ELF、完整包和安装器 Lua 校验通过，并清除安装器内旧目标载荷。产物仍为 `dist/loop-0.3.5.canopus`（697856 字节），来源及 SHA-256 见同名 build-info，日志为 `build/connect-targets-035/`。后文五目标构建结果保留为历史。
 

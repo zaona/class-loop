@@ -191,8 +191,8 @@ pub static canopus_module_descriptor: ModuleDescriptorV1 = ModuleDescriptorV1 {
         | FLAG_REGISTERS_LAUNCHER_ENTRY
         | FLAG_REQUIRES_UI_DISPATCHER
         | FLAG_APP_UNREGISTER_REBOOT_REQUIRED,
-    // 收据 / inbox 文件名 token；必须与构建脚本 TOKEN=loop 一致。
-    module_id: pack(b"loop"),
+    // 与手机插件共用模块 ID；必须与 Canopus.toml 的 module.id 一致。
+    module_id: pack(loop_protocol::MODULE_ID.as_bytes()),
     module_version: pack(env!("CARGO_PKG_VERSION").as_bytes()),
     build_id: pack(concat!("loop-", env!("CARGO_PKG_VERSION")).as_bytes()),
     target_id: pack(TARGET_ID),
@@ -244,7 +244,7 @@ mod tests {
         let register = || {
             register_native_pages(
                 b"Loop\0",
-                b"/data/canopus/m.loop/appicon_loop.bin\0",
+                b"/data/canopus/m.canopus_loop/appicon_loop.bin\0",
                 &pages,
             )
         };
@@ -255,7 +255,7 @@ mod tests {
         REGISTER_RESULT.store(0xD7, Ordering::Relaxed);
         assert_eq!(register(), Ok(0xD7));
         assert_eq!(
-            register_native_pages(b"Loop\0", b"/data/canopus/m.loop/appicon_loop.bin\0", &[]),
+            register_native_pages(b"Loop\0", b"/data/canopus/m.canopus_loop/appicon_loop.bin\0", &[]),
             Ok(0xD7)
         );
         REGISTER_RESULT.store(-16, Ordering::Relaxed);

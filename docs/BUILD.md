@@ -38,7 +38,7 @@ sh scripts/build-wsl.sh xiaomi-band-10-pro-3.101.043         # 单固件
 
 脚本依次调用官方 `canopus build`、`canopus package --installer`、`canopus package verify`，并对生成的安装器运行 `luac -p`。部分目标使用项目根目录中的临时清单，构建后自动移除。
 
-- `build/<target>/loop.elf`：通过官方 verifier 的 ELF32 ET_REL 模块。
+- `build/<target>/canopus_loop.elf`：通过官方 verifier 的 ELF32 ET_REL 模块。
 - `dist/loop-0.3.5.canopus`：包含全部三个目标；部分构建写入 `dist/selected/<版本组合>/`，包名带版本后缀。
 - 同名 `.build-info.json`：本次 SDK 分支、完整 commit、tracked dirty 状态、CLI/包/各目标 ELF 的 SHA-256。
 - `dist/installer/<设备族>/`：该次选择的固件对应的 `main.lua`、模块和 CMI2 回执。打包此目录中的 `main.lua` 和 `.bin` 资源作为安装表盘。

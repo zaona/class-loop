@@ -299,7 +299,8 @@ pub mod storage {
 }
 pub mod module {
     use super::*;
-    pub fn register_native_pages(_: &[u8], _: &[u8], pages: &[*mut c_void]) -> Result<u16, i32> {
+    pub fn register_native_pages(_: &[u8], icon: &[u8], pages: &[*mut c_void]) -> Result<u16, i32> {
+        assert_eq!(icon, b"/data/canopus/m.canopus_loop/appicon_loop.bin\0");
         assert_eq!(pages.len(), 5);
         for (i, &p) in pages.iter().enumerate() {
             unsafe {

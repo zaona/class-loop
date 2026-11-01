@@ -83,7 +83,7 @@ def main():
             "package": output.name,
             "package_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
             "artifacts": {
-                target: hashlib.sha256((ROOT / "build" / target / "loop.elf").read_bytes()).hexdigest()
+                target: hashlib.sha256((ROOT / "build" / target / f"{manifest['module']['id']}.elf").read_bytes()).hexdigest()
                 for target in selected
             },
         }

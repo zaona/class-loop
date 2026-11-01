@@ -90,7 +90,7 @@ pub fn install_stage(stage: u32) -> Result<(), i32> {
                 core::array::from_fn::<_, PAGE_COUNT, _>(|i| descriptor(i).cast::<c_void>());
             match crate::module::register_native_pages(
                 b"Loop\0",
-                b"/data/canopus/m.loop/appicon_loop.bin\0",
+                b"/data/canopus/m.canopus_loop/appicon_loop.bin\0",
                 &pages,
             ) {
                 Ok(id) => {

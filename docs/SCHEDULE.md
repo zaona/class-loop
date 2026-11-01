@@ -14,7 +14,7 @@ AstroBox 插件 plugins/astrobox-loop-import（按 ICS 来源方言转换，支�
         ▼
 Loop 原生模块校验并原子写入
         ▼
-/data/canopus/m.loop/schedule.json
+/data/canopus/m.canopus_loop/schedule.json
         │ 下一次界面刷新时加载
         ▼
 loop-device / loop-core

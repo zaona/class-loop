@@ -3,7 +3,7 @@
 extern crate alloc;
 use alloc::vec::Vec;
 
-pub const MODULE_ID: &str = "loop";
+pub const MODULE_ID: &str = "canopus_loop";
 pub const FRAME_MAX: usize = 480;
 pub const HEADER: usize = 16;
 pub const CHUNK_MAX: usize = FRAME_MAX - HEADER;
