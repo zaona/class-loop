@@ -194,12 +194,9 @@ fn render(index: usize) -> i32 {
         }
         page(index).rows[slot].card = card.clone();
         unsafe {
-            // Keep prefab typography and spacing. Long detail fields retain all text.
-            lvx_object_set_size(
-                object,
-                CONTENT_WIDTH,
-                96.max(40 + label_height(&card.detail)),
-            );
+            // Stock row subtitles scroll on one line, so their length must not
+            // increase the row height. Match the Manager's native list rows.
+            lvx_object_set_size(object, CONTENT_WIDTH, 96);
             lvx_align_to(object, previous, ALIGN_OUT_BOTTOM_MID, 0, ROW_GAP);
             lvx_set_hidden(object, 0);
             let trailing = lvx_list_row_trailing(object);

@@ -2,7 +2,7 @@
 
 本文是构建速查。完整环境搭建与日常开发过程见 [WSL-DEVELOPMENT.md](WSL-DEVELOPMENT.md)，参考应用结构差异见 [LYRA-NG-COMPARISON.md](LYRA-NG-COMPARISON.md)。
 
-当前使用 Canopus `ds-newdevice-supports@c5573a69`，Loop 为 0.3.5 / versionCode 8，仅打包 `.043` / `.155` / `.179` 三个目标。v1 文案、按钮和原生页面恢复见 [V1-PARITY-034.md](V1-PARITY-034.md)，此前分支适配记录见 [DS-NEWDEVICE-SUPPORTS.md](DS-NEWDEVICE-SUPPORTS.md)。
+当前使用 Canopus `ds-newdevice-supports@c5573a69`，Loop 为 0.3.6 / versionCode 9，仅打包 `.043` / `.155` / `.179` 三个目标。本版修复长课程信息撑高原生列表卡片的问题。v1 文案、按钮和原生页面恢复见 [V1-PARITY-034.md](V1-PARITY-034.md)，此前分支适配记录见 [DS-NEWDEVICE-SUPPORTS.md](DS-NEWDEVICE-SUPPORTS.md)。
 
 0.3.5 的旧点击校验、切页失败恢复和旧文件清理见 [CLEANUP-REVIEW.md](CLEANUP-REVIEW.md)。
 
@@ -39,7 +39,7 @@ sh scripts/build-wsl.sh xiaomi-band-10-pro-3.101.043         # 单固件
 脚本依次调用官方 `canopus build`、`canopus package --installer`、`canopus package verify`，并对生成的安装器运行 `luac -p`。部分目标使用项目根目录中的临时清单，构建后自动移除。
 
 - `build/<target>/canopus_loop.elf`：通过官方 verifier 的 ELF32 ET_REL 模块。
-- `dist/loop-0.3.5.canopus`：包含全部三个目标；部分构建写入 `dist/selected/<版本组合>/`，包名带版本后缀。
+- `dist/loop-0.3.6.canopus`：包含全部三个目标；部分构建写入 `dist/selected/<版本组合>/`，包名带版本后缀。
 - 同名 `.build-info.json`：本次 SDK 分支、完整 commit、tracked dirty 状态、CLI/包/各目标 ELF 的 SHA-256。
 - `dist/installer/<设备族>/`：该次选择的固件对应的 `main.lua`、模块和 CMI2 回执。打包此目录中的 `main.lua` 和 `.bin` 资源作为安装表盘。
 
@@ -49,7 +49,7 @@ sh scripts/build-wsl.sh xiaomi-band-10-pro-3.101.043         # 单固件
 可手动检查包：
 
 ```sh
-canopus package verify dist/loop-0.3.5.canopus
+canopus package verify dist/loop-0.3.6.canopus
 ```
 
 ## 安装与运行

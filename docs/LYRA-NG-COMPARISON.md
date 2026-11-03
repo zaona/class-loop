@@ -33,7 +33,7 @@ Loop 已接入当前 Canopus 架构：`core/view` 提供展示数据，`device/t
 | 旧构建脚本 | 已移除旧入口与重复 ELF 校验脚本，统一 `build-wsl.sh` | `build-install-watchface*.sh` 仍有 CMI1、签名和本地 ctor 路线，不能照搬到当前流程 |
 | 应用图标源 | `crates/loop-device/assets/appicon_loop.png` / `.bin`，由设备 crate 内嵌 | `crates/lyra-player-device/assets/appicon.bin`，由设备 crate 内嵌 |
 | UI 代码 | `core/view.rs` + `target/ui/mod.rs`，五个系统组件原生页 | `core/{view,layout}.rs` 与 `target/ui` 按播放器、歌单、歌词等业务组织 |
-| Rust 版本声明 | workspace 最低 1.88，版本 0.3.5 | workspace 最低 1.85，版本 0.1.1；模块清单版本为 0.2.1 |
+| Rust 版本声明 | workspace 最低 1.88，版本 0.3.6 | workspace 最低 1.85，版本 0.1.1；模块清单版本为 0.2.1 |
 | 校验常量 | 图标及当前编译产物的数据常量精确列表 | 音乐图标及其编译产物的独立列表 |
 
 Loop 的有效源码目录为 `crates/`、`tools/`、`docs/`、`plugins/` 和 `scripts/`。旧 `targets/*.env` 和重复表盘图标已删除；`watchfaces/` 仅保留历史说明与忽略的旧产物。目标清单统一在 `Canopus.toml`，图标归入设备 crate。`build/`、`dist/`、`target/` 是本地产物和缓存目录，其存在不代表受版本控制的架构一致。

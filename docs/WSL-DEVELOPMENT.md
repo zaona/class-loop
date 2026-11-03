@@ -1,6 +1,8 @@
 # WSL 开发与构建流程
 
-记录日期：2026-10-31，更新至 2026-11-02。适用于当前 `D:\Canopus` 工作区。本文件记录环境搭建、日常修改、构建验证和排错；[BUILD.md](BUILD.md) 是日常构建速查，[MIGRATION-ABI2.md](MIGRATION-ABI2.md) 保存本次迁移结果。
+记录日期：2026-10-31，更新至 2026-11-03。适用于当前 `D:\Canopus` 工作区。本文件记录环境搭建、日常修改、构建验证和排错；[BUILD.md](BUILD.md) 是日常构建速查，[MIGRATION-ABI2.md](MIGRATION-ABI2.md) 保存本次迁移结果。
+
+2026-11-03 将模块清单与 Rust workspace 统一升为 0.3.6 / versionCode 9，同步 workspace 和插件中的路径依赖锁文件。WSL 执行 `cargo check --workspace --offline` 与 `sh scripts/build-wsl.sh`，三个目标 ELF、完整包与安装器 Lua 校验通过。产物为 `dist/loop-0.3.6.canopus`，日志见 `build/mirage-e2e-20261103/version-036-check.log`、`version-036-build.log`；递增 versionCode 避免更新被同版本校验拒绝。卡片高度修复已在升版本前通过手环 11 `.179` 模拟器验证，截图与对比保存在同目录的 `results/`，不作为真机验证。
 
 2026-11-02 将模块 ID 和 Connect 通道统一为 `canopus_loop`，私有目录为 `/data/canopus/m.canopus_loop/`。ABI 2 版尚未发布，本次调整无需增加用户迁移步骤。WSL 执行 `RUSTFLAGS=-Dwarnings cargo test --workspace`（14 项）、Band 11 UI feature 测试（1 项）、插件 `cargo test --target x86_64-unknown-linux-gnu`（5 项），全部通过；运行插件 `python3 scripts/build_dist.py --release --package` 和模块 `sh scripts/build-wsl.sh`。插件升为 0.3.1；三目标 ELF、包、CMI2 模块身份、安装器 Lua 与载荷一致性校验通过，安装器旧 ID 的六个载荷已移除。产物仍为 `dist/loop-0.3.5.canopus`，日志及核验结果见 `build/module-id-canopus-loop/`。以下路径和模块 ID 的旧记录保留为历史。
 
@@ -10,7 +12,7 @@
 
 2026-11-01 第三份真机日志已通过 WSL 解压、解析并与上一份逐字节对比，确认 0.3.2 首页创建成功且没有新增同类 BusFault；512 条诊断记录因限额停止。此轮没有改运行时代码或重建，详细证据与结论边界见 [DEVICE-CRASH-29598-3.md](DEVICE-CRASH-29598-3.md)。
 
-当前版本为 0.3.5 / versionCode 8，恢复 v1 文案、全部按钮和五个原生页面，使用管理器同类系统预制组件，恢复固件切页和 UI 线程刷新，不需要替换现有管理器。逐项对照、WSL 命令与验证结果见 [V1-PARITY-034.md](V1-PARITY-034.md)。0.3.3 的系统组件迁移、第 0 周修复、Corona 克隆及网络处理保留为历史，见 [CORONA-UI-033.md](CORONA-UI-033.md)；真实日历修复继续保留。
+当前版本为 0.3.6 / versionCode 9，将原生列表行统一为管理器使用的 96 像素高度，避免按换行估算撑高单行滚动的课程卡片。保留 v1 文案、全部按钮、五个原生页面、固件切页和 UI 线程刷新，不需要替换现有管理器。逐项对照、WSL 命令与验证结果见 [V1-PARITY-034.md](V1-PARITY-034.md)。0.3.3 的系统组件迁移、第 0 周修复、Corona 克隆及网络处理保留为历史，见 [CORONA-UI-033.md](CORONA-UI-033.md)；真实日历修复继续保留。
 
 0.3.5 在 WSL 中扩展原生交互回归，修复按住课程期间导入的旧点击和前进/返回失败后的恢复。已删除两个旧表盘构建入口、重复 ELF 校验脚本、四份 `targets/*.env` 和重复图标。根目录 `index.txt` 用于插件市场定位，继续保留。命令、清理范围及结果见 [CLEANUP-REVIEW.md](CLEANUP-REVIEW.md)，日志为 `build/review-fixes-035/`。后文迁移时期的旧测试和版本号保留为历史。
 
@@ -240,7 +242,7 @@ python3 scripts/build_dist.py --release --package
 ## 9. 校验、安装与问题定位
 
 ```sh
-canopus package verify dist/loop-0.3.5.canopus
+canopus package verify dist/loop-0.3.6.canopus
 luac -p dist/installer/xiaomi-band-10-pro/main.lua
 luac -p dist/installer/xiaomi-band-11/main.lua
 ```

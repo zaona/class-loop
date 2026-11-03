@@ -1,6 +1,6 @@
 # Loop 0.3.4：恢复 v1 文案、操作与原生切页
 
-当前维护版本为 0.3.5 / versionCode 8，后续审查补齐按下到松手期间的导入校验及切页失败恢复，并清理旧文件，见 [CLEANUP-REVIEW.md](CLEANUP-REVIEW.md)。本文保留 0.3.4 的功能基线、构建记录和包哈希；当时点击测试只覆盖 CLICKED 维护期间发生的导入，完整 PRESSED/timer/CLICKED 场景由 0.3.5 补上。
+当前维护版本为 0.3.6 / versionCode 9，修复长课程信息撑高原生列表卡片的问题；此前审查补齐按下到松手期间的导入校验及切页失败恢复，并清理旧文件，见 [CLEANUP-REVIEW.md](CLEANUP-REVIEW.md)。本文保留 0.3.4 的功能基线、构建记录和包哈希；当时点击测试只覆盖 CLICKED 维护期间发生的导入，完整 PRESSED/timer/CLICKED 场景由 0.3.5 补上。
 
 2026-11-01（Asia/Shanghai）。版本 0.3.4 / versionCode 7。功能基准为重构前提交 `6719914` 的 `crates/loop-core/src/ui.rs`、`loop-device/src/target/mod.rs` 和原生页面后端；组件与固件调用参照当前 Canopus 管理器、Corona 和 Lyra。
 
